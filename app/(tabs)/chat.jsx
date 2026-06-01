@@ -10,6 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import ActiveNowRow from "../../components/ActiveNowRow";
 import MessageListItem from "../../components/MessageListItem";
@@ -62,7 +63,8 @@ export default function ChatListScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Text style={styles.title}>Messages</Text>
+      <StatusBar style="light" />
+      <Text style={styles.title}>Messages 💬</Text>
 
       <View style={styles.searchWrap}>
         <Ionicons name="search" size={18} color={colors.textMuted} />
@@ -127,7 +129,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     color: colors.text,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
   },

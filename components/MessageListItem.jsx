@@ -34,7 +34,7 @@ export default function MessageListItem({
   const msgType = item.lastMessage?.message_type || item.lastMessage?.type;
   const preview =
     item.lastMessage?.content ||
-    (msgType === "voice" ? "Voice message" : "Say hello 👋");
+    (msgType === "voice" ? "🎙️ Voice message" : "Say hello 👋");
 
   const handleUnmatch = () => {
     swipeRef.current?.close();
@@ -55,7 +55,7 @@ export default function MessageListItem({
       extrapolate: "clamp",
     });
     return (
-      <TouchableOpacity style={styles.deleteAction} onPress={handleUnmatch}>
+      <TouchableOpacity style={styles.deleteAction} onPress={handleUnmatch} activeOpacity={0.8}>
         <Animated.View style={{ transform: [{ scale }] }}>
           <Ionicons name="trash" size={22} color={colors.text} />
           <Text style={styles.deleteText}>Unmatch</Text>
@@ -68,14 +68,17 @@ export default function MessageListItem({
     <Swipeable ref={swipeRef} renderRightActions={renderRightActions} overshootRight={false}>
       <TouchableOpacity
         style={styles.row}
-        activeOpacity={0.85}
+        activeOpacity={0.8}
         onPress={() => router.push(`/chat/${item.id}`)}
       >
         <View style={styles.avatarWrap}>
           {photo ? (
             <Image
               source={{ uri: photo }}
-              style={[styles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}
+              style={[
+                styles.avatar,
+                { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
+              ]}
             />
           ) : (
             <View
@@ -117,11 +120,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    height: 80,
     backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.card,
   },
   avatarWrap: {
     marginRight: 14,
@@ -131,7 +134,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   avatarPlaceholder: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -196,7 +199,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: 90,
-    marginVertical: 1,
   },
   deleteText: {
     color: colors.text,

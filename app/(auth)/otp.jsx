@@ -7,22 +7,42 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as api from "../../services/api";
+import { sendOtpViaFirebase, verifyOtpCode } from "../../services/firebaseAuth";
 import { useAuthStore } from "../../store/authStore";
+import GradientButton from "../../components/GradientButton";
+import BackHeader from "../../components/BackHeader";
 import colors from "../../constants/colors";
 
 export default function OtpScreen() {
-  const { phone } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const phone = String(params.phone || "");
   const login = useAuthStore((state) => state.login);
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
+  const [focusedIndex, setFocusedIndex] = useState(0);
   const [countdown, setCountdown] = useState(60);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const inputsRef = useRef([]);
+
+  useEffect(() => {
+    console.log("OTP screen loaded, phone:", phone);
+  }, [phone]);
+
+  useEffect(() => {
+    if (!phone) {
+      router.replace("/(auth)/login");
+    }
+  }, [phone]);
 
   useEffect(() => {
     if (countdown <= 0) {
@@ -32,6 +52,14 @@ export default function OtpScreen() {
     return () => clearInterval(timer);
   }, [countdown]);
 
+  const formatCountdown = () => {
+    const m = Math.floor(countdown / 60);
+    const s = countdown % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  };
+
+  const maskedPhone = phone ? `${phone.slice(0, 2)}******${phone.slice(-2)}` : "";
+
   const handleChange = (value, index) => {
     const cleaned = value.replace(/\D/g, "").slice(-1);
     const nextDigits = [...digits];
@@ -40,23 +68,28 @@ export default function OtpScreen() {
 
     if (cleaned && index < 5) {
       inputsRef.current[index + 1]?.focus();
+      setFocusedIndex(index + 1);
     }
   };
 
   const handleKeyPress = (event, index) => {
     if (event.nativeEvent.key === "Backspace" && !digits[index] && index > 0) {
       inputsRef.current[index - 1]?.focus();
+      setFocusedIndex(index - 1);
     }
   };
 
   const handleResend = async () => {
+    if (!phone) {
+      return;
+    }
     setResending(true);
     try {
-      await api.sendOtp(String(phone));
+      await sendOtpViaFirebase(phone);
       setCountdown(60);
       setDigits(["", "", "", "", "", ""]);
       inputsRef.current[0]?.focus();
-      Alert.alert("OTP Sent", "A new OTP has been sent to your phone.");
+      Alert.alert("OTP Sent", "A new code has been sent.");
     } catch (error) {
       Alert.alert("Error", error.message || "Failed to resend OTP");
     } finally {
@@ -73,7 +106,7 @@ export default function OtpScreen() {
 
     setLoading(true);
     try {
-      const response = await api.verifyOtp(String(phone), otp);
+      const response = await verifyOtpCode(phone, otp);
       const { token, isNewUser, user } = response.data;
       await login(token, user);
 
@@ -99,110 +132,125 @@ export default function OtpScreen() {
     }
   };
 
+  if (!phone) {
+    return (
+      <LinearGradient colors={colors.backgroundGradient} start={{x: 0, y: 0}} end={{x: 0, y: 1}} style={{flex: 1}}>
+        <SafeAreaView style={styles.container}>
+          <StatusBar style="dark" />
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Verify OTP</Text>
-      <Text style={styles.subtitle}>Code sent to +91 {phone}. Check backend console in dev.</Text>
-
-      <View style={styles.otpRow}>
-        {digits.map((digit, index) => (
-          <TextInput
-            key={index}
-            ref={(ref) => {
-              inputsRef.current[index] = ref;
-            }}
-            style={styles.otpBox}
-            value={digit}
-            onChangeText={(value) => handleChange(value, index)}
-            onKeyPress={(event) => handleKeyPress(event, index)}
-            keyboardType="number-pad"
-            maxLength={1}
-            textAlign="center"
-          />
-        ))}
-      </View>
-
-      {countdown > 0 ? (
-        <Text style={styles.timerText}>Resend OTP in {countdown}s</Text>
-      ) : (
-        <TouchableOpacity onPress={handleResend} disabled={resending}>
-          <Text style={styles.resendText}>{resending ? "Sending..." : "Resend OTP"}</Text>
-        </TouchableOpacity>
-      )}
-
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleVerify}
-        disabled={loading}
+    <LinearGradient colors={colors.backgroundGradient} start={{x: 0, y: 0}} end={{x: 0, y: 1}} style={{flex: 1}}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" />
+      <BackHeader title="Verify OTP" />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {loading ? (
-          <ActivityIndicator color={colors.white} />
+        <Text style={styles.title}>Verify Phone 📱</Text>
+        <Text style={styles.subtitle}>We sent a code to +91 {maskedPhone}</Text>
+
+        <View style={styles.otpRow}>
+          {digits.map((digit, index) => {
+            const isActive = focusedIndex === index || digit.length > 0;
+            return (
+              <TextInput
+                key={index}
+                ref={(ref) => {
+                  inputsRef.current[index] = ref;
+                }}
+                style={[styles.otpBox, isActive && styles.otpBoxActive]}
+                value={digit}
+                onChangeText={(value) => handleChange(value, index)}
+                onKeyPress={(event) => handleKeyPress(event, index)}
+                onFocus={() => setFocusedIndex(index)}
+                keyboardType="number-pad"
+                maxLength={1}
+                textAlign="center"
+                autoFocus={index === 0}
+              />
+            );
+          })}
+        </View>
+
+        {countdown > 0 ? (
+          <Text style={styles.timerText}>Resend in {formatCountdown()}</Text>
         ) : (
-          <Text style={styles.buttonText}>Verify</Text>
+          <TouchableOpacity onPress={handleResend} disabled={resending} activeOpacity={0.8}>
+            <Text style={styles.resendText}>{resending ? "Sending..." : "Resend OTP"}</Text>
+          </TouchableOpacity>
         )}
-      </TouchableOpacity>
+
+        <GradientButton title="Verify" onPress={handleVerify} loading={loading} />
+      </KeyboardAvoidingView>
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
-    paddingHorizontal: 24,
-    paddingTop: 24,
+  },
+  flex: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: '#FFFFFF',
+    color: '#1A1A2E',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: '#666666',
     marginBottom: 32,
   },
   otpRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 24,
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 28,
   },
   otpBox: {
-    width: 45,
-    height: 55,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    fontSize: 22,
+    width: 52,
+    height: 64,
+    borderWidth: 2,
+    borderColor: '#FFE8EC',
+    borderRadius: 16,
+    fontSize: 24,
     fontWeight: "700",
-    color: '#FFFFFF',
-    backgroundColor: '#1A1A1A',
+    color: '#1A1A2E',
+    backgroundColor: '#FFFFFF',
+  },
+  otpBoxActive: {
+    borderColor: '#FF4458',
   },
   timerText: {
     textAlign: "center",
-    color: '#FFFFFF',
-    marginBottom: 24,
+    color: colors.textSecondary,
+    marginBottom: 28,
+    fontSize: 14,
   },
   resendText: {
     textAlign: "center",
-    color: '#FFFFFF',
-    fontWeight: "600",
-    marginBottom: 24,
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 25,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: colors.primary,
     fontWeight: "700",
+    marginBottom: 28,
+    fontSize: 15,
   },
 });

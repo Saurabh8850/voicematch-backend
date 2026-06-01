@@ -5,17 +5,83 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  ActivityIndicator,
   Pressable,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Animated } from "react-native";
 import VoiceRecorder from "../../components/VoiceRecorder";
 import VoicePlayer from "../../components/VoicePlayer";
+import OnboardingProgress from "../../components/OnboardingProgress";
+import GradientButton from "../../components/GradientButton";
+import BackHeader from "../../components/BackHeader";
 import * as api from "../../services/api";
 import colors from "../../constants/colors";
+
+function WaveformBars({ active }) {
+  const bars = useRef([0, 1, 2, 3, 4].map(() => new Animated.Value(0.4))).current;
+
+  useEffect(() => {
+    if (!active) {
+      bars.forEach((b) => b.setValue(0.4));
+      return undefined;
+    }
+    const anims = bars.map((bar, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(bar, {
+            toValue: 1,
+            duration: 300 + i * 80,
+            useNativeDriver: true,
+          }),
+          Animated.timing(bar, {
+            toValue: 0.3,
+            duration: 300 + i * 80,
+            useNativeDriver: true,
+          }),
+        ])
+      )
+    );
+    anims.forEach((a) => a.start());
+    return () => anims.forEach((a) => a.stop());
+  }, [active, bars]);
+
+  return (
+    <View style={waveStyles.row}>
+      {bars.map((bar, i) => (
+        <Animated.View
+          key={i}
+          style={[waveStyles.bar, { transform: [{ scaleY: bar }] }]}
+        />
+      ))}
+    </View>
+  );
+}
+
+const waveStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 32,
+    marginTop: 16,
+  },
+  bar: {
+    width: 5,
+    height: 32,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+});
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
 
 export default function VoiceIntro() {
   const [isRecording, setIsRecording] = useState(false);
@@ -40,8 +106,8 @@ export default function VoiceIntro() {
 
       const animation = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.08, duration: 500, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
         ])
       );
       animation.start();
@@ -98,13 +164,14 @@ export default function VoiceIntro() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: "100%" }]} />
-      </View>
+    <LinearGradient colors={colors.backgroundGradient} start={{x: 0, y: 0}} end={{x: 0, y: 1}} style={{flex: 1}}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" />
+      <BackHeader title="" />
+      <OnboardingProgress step={3} />
 
-      <Text style={styles.title}>Record your voice intro</Text>
-      <Text style={styles.subtitle}>Let them hear you before they swipe</Text>
+      <Text style={styles.title}>Record your voice 🎙️</Text>
+      <Text style={styles.subtitle}>Let matches hear you before swiping</Text>
 
       <View style={styles.centerArea}>
         <Pressable
@@ -116,13 +183,19 @@ export default function VoiceIntro() {
           }}
           onPressOut={() => setIsRecording(false)}
         >
-          <Animated.View
-            style={[
-              styles.recordButton,
-              isRecording && { transform: [{ scale: pulseAnim }] },
-            ]}
-          >
-            <Ionicons name="mic" size={42} color={colors.white} />
+          <Animated.View style={{ transform: [{ scale: isRecording ? pulseAnim : 1 }] }}>
+            <LinearGradient
+              colors={isRecording ? colors.gradientPrimary : [colors.primary, colors.primaryLight]}
+              style={styles.outerRing}
+            >
+              <View style={[styles.innerCircle, isRecording && styles.innerRecording]}>
+                {isRecording ? (
+                  <Text style={styles.timer}>{formatTime(recordSeconds)}</Text>
+                ) : (
+                  <Ionicons name="mic" size={48} color={colors.primary} />
+                )}
+              </View>
+            </LinearGradient>
           </Animated.View>
         </Pressable>
 
@@ -134,63 +207,50 @@ export default function VoiceIntro() {
 
         <Text style={styles.hint}>
           {isRecording
-            ? `Release to Stop • ${recordSeconds}s`
+            ? "Recording... tap to stop"
             : recordingUri
-              ? "Preview your recording below"
-              : "Hold to Record"}
+              ? "Preview your recording"
+              : "Tap to start recording"}
         </Text>
+        <Text style={styles.limitHint}>Min 10s · Max 60s</Text>
 
         {recordingUri && (
           <View style={styles.previewBox}>
+            <WaveformBars active />
             <VoicePlayer audioUrl={recordingUri} size="large" />
-            <TouchableOpacity style={styles.rerecordButton} onPress={handleReRecord}>
+            <TouchableOpacity onPress={handleReRecord} activeOpacity={0.8}>
               <Text style={styles.rerecordText}>Re-record</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
 
-      <TouchableOpacity
-        style={[styles.button, (!recordingUri || uploading) && styles.buttonDisabled]}
+      <GradientButton
+        title="Finish & Find Matches"
         onPress={handleFinish}
-        disabled={!recordingUri || uploading}
-      >
-        {uploading ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <Text style={styles.buttonText}>Finish & Find Matches</Text>
-        )}
-      </TouchableOpacity>
+        loading={uploading}
+        disabled={!recordingUri}
+        style={styles.footerBtn}
+      />
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 20,
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: colors.grayLight,
-    borderRadius: 2,
-    marginVertical: 12,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "700",
-    color: colors.text,
+    color: '#1A1A2E',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: colors.gray,
+    color: '#666666',
     marginBottom: 24,
   },
   centerArea: {
@@ -198,47 +258,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  recordButton: {
+  outerRing: {
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: colors.primary,
+    padding: 4,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+  },
+  innerCircle: {
+    width: 188,
+    height: 188,
+    borderRadius: 94,
+    backgroundColor: '#FFFFFF',
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  innerRecording: {
+    backgroundColor: '#FFF5F7',
+  },
+  timer: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: '#1A1A2E',
   },
   hint: {
-    marginTop: 16,
-    color: colors.grayDark,
+    marginTop: 20,
+    color: '#666666',
     fontSize: 15,
     fontWeight: "600",
+  },
+  limitHint: {
+    marginTop: 6,
+    color: '#999999',
+    fontSize: 13,
   },
   previewBox: {
     marginTop: 24,
     alignItems: "center",
-    gap: 12,
-  },
-  rerecordButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    gap: 8,
   },
   rerecordText: {
     color: colors.primary,
-    fontWeight: "600",
-  },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 25,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: colors.white,
-    fontSize: 16,
     fontWeight: "700",
+    fontSize: 15,
+    marginTop: 8,
+  },
+  footerBtn: {
+    marginBottom: 20,
   },
 });

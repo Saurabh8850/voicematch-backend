@@ -1,246 +1,273 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from 'react';
 import {
-  Modal,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  Animated,
-  Dimensions,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import colors from "../constants/colors";
-import { getInitials } from "../utils/user";
+  Modal, View, Text, TouchableOpacity, StyleSheet,
+  Animated, Dimensions, Image
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const AVATAR_SIZE = 120;
+const { width, height } = Dimensions.get('window');
 
-export default function MatchAnimation({
-  visible,
-  currentUser,
-  matchedUser,
-  onMessage,
-  onKeepSwiping,
-}) {
-  const leftAnim = useRef(new Animated.Value(-SCREEN_WIDTH)).current;
-  const rightAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
-  const heartScale = useRef(new Animated.Value(0)).current;
-  const heartOpacity = useRef(new Animated.Value(0)).current;
-  const contentOpacity = useRef(new Animated.Value(0)).current;
+export default function MatchAnimation({ visible, currentUser, matchedUser, onMessage, onKeepSwiping }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.5)).current;
+  const leftPhoto = useRef(new Animated.Value(-width/2)).current;
+  const rightPhoto = useRef(new Animated.Value(width/2)).current;
+  const heartsY = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
 
   useEffect(() => {
-    if (!visible) {
-      leftAnim.setValue(-SCREEN_WIDTH);
-      rightAnim.setValue(SCREEN_WIDTH);
-      heartScale.setValue(0);
-      heartOpacity.setValue(0);
-      contentOpacity.setValue(0);
-      return;
-    }
+    if (visible) {
+      // Reset
+      opacity.setValue(0);
+      scale.setValue(0.5);
+      leftPhoto.setValue(-width/2);
+      rightPhoto.setValue(width/2);
+      heartsY.forEach(h => h.setValue(0));
 
-    Animated.sequence([
-      Animated.parallel([
-        Animated.spring(leftAnim, {
-          toValue: -AVATAR_SIZE / 2 - 8,
-          useNativeDriver: true,
-          friction: 7,
-          tension: 50,
-        }),
-        Animated.spring(rightAnim, {
-          toValue: AVATAR_SIZE / 2 + 8,
-          useNativeDriver: true,
-          friction: 7,
-          tension: 50,
-        }),
-        Animated.timing(contentOpacity, {
+      // Animate in sequence
+      Animated.sequence([
+        // Fade in overlay
+        Animated.timing(opacity, {
           toValue: 1,
           duration: 400,
           useNativeDriver: true,
         }),
-      ]),
-      Animated.parallel([
-        Animated.spring(heartScale, {
-          toValue: 1,
-          useNativeDriver: true,
-          friction: 4,
-        }),
-        Animated.timing(heartOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(heartScale, {
-            toValue: 1.15,
-            duration: 600,
+        // Photos slide in
+        Animated.parallel([
+          Animated.spring(leftPhoto, {
+            toValue: 0,
+            tension: 50,
+            friction: 7,
             useNativeDriver: true,
           }),
-          Animated.timing(heartScale, {
+          Animated.spring(rightPhoto, {
+            toValue: 0,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scale, {
             toValue: 1,
-            duration: 600,
+            tension: 50,
+            friction: 7,
             useNativeDriver: true,
           }),
-        ])
-      ),
-    ]).start();
-  }, [visible, leftAnim, rightAnim, heartScale, heartOpacity, contentOpacity]);
+        ]),
+      ]).start();
+
+      // Float hearts continuously
+      heartsY.forEach((h, i) => {
+        Animated.loop(
+          Animated.timing(h, {
+            toValue: -300,
+            duration: 2000 + i * 300,
+            delay: i * 200,
+            useNativeDriver: true,
+          })
+        ).start();
+      });
+    }
+  }, [visible]);
+
+  const heartPositions = [60, 120, 190, 260, 320];
+  const heartOpacities = heartsY.map(h =>
+    h.interpolate({ inputRange: [-300, -150, 0], outputRange: [0, 1, 0] })
+  );
 
   const currentPhoto = currentUser?.profile_photo_urls?.[0];
   const matchedPhoto = matchedUser?.profile_photo_urls?.[0];
-  const matchedName = matchedUser?.full_name || matchedUser?.name || "your match";
+  const matchedName = matchedUser?.full_name || matchedUser?.name || 'Someone';
+
+  if (!visible) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-      <View style={styles.overlay}>
-        <Animated.View style={{ opacity: contentOpacity, alignItems: "center", width: "100%" }}>
-          <Text style={styles.title}>It&apos;s a Match! 💕</Text>
+    <Modal transparent visible={visible} animationType="none">
+      <Animated.View style={[styles.container, { opacity }]}>
+        
+        {/* Floating hearts */}
+        {heartsY.map((h, i) => (
+          <Animated.View
+            key={i}
+            style={[
+              styles.floatingHeart,
+              {
+                left: heartPositions[i],
+                transform: [{ translateY: h }],
+                opacity: heartOpacities[i],
+              }
+            ]}
+          >
+            <Ionicons name="heart" size={24 + i * 4} color="#FF4458" />
+          </Animated.View>
+        ))}
 
-          <View style={styles.photosStage}>
-            <Animated.View style={[styles.avatarWrap, { transform: [{ translateX: leftAnim }] }]}>
-              {currentPhoto ? (
-                <Image source={{ uri: currentPhoto }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.initials}>{getInitials(currentUser?.full_name)}</Text>
-                </View>
-              )}
-            </Animated.View>
-
-            <Animated.View
-              style={[
-                styles.heartWrap,
-                {
-                  opacity: heartOpacity,
-                  transform: [{ scale: heartScale }],
-                },
-              ]}
-            >
-              <Ionicons name="heart" size={44} color={colors.primary} />
-            </Animated.View>
-
-            <Animated.View style={[styles.avatarWrap, { transform: [{ translateX: rightAnim }] }]}>
-              {matchedPhoto ? (
-                <Image source={{ uri: matchedPhoto }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.initials}>{getInitials(matchedName)}</Text>
-                </View>
-              )}
-            </Animated.View>
-          </View>
-
-          <Text style={styles.subtitle}>You and {matchedName} liked each other</Text>
-
-          <View style={styles.actions}>
-            <TouchableOpacity style={styles.primaryButton} onPress={onMessage} activeOpacity={0.9}>
-              <Text style={styles.primaryButtonText}>Send Message</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={onKeepSwiping} activeOpacity={0.9}>
-              <Text style={styles.secondaryButtonText}>Keep Swiping</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Match title */}
+        <Animated.View style={{ transform: [{ scale }], alignItems: 'center', marginBottom: 40 }}>
+          <Text style={styles.matchEmoji}>💕</Text>
+          <Text style={styles.matchTitle}>It's a Match!</Text>
+          <Text style={styles.matchSubtitle}>
+            You and {matchedName} liked each other
+          </Text>
         </Animated.View>
-      </View>
+
+        {/* Photos row */}
+        <View style={styles.photosRow}>
+          {/* Current user photo - slides from left */}
+          <Animated.View style={[styles.photoWrapper, { transform: [{ translateX: leftPhoto }] }]}>
+            <LinearGradient
+              colors={['#FF4458', '#FF6B7A']}
+              style={styles.photoGradientBorder}
+            >
+              {currentPhoto ? (
+                <Image source={{ uri: currentPhoto }} style={styles.photo} />
+              ) : (
+                <View style={[styles.photo, styles.photoPlaceholder]}>
+                  <Text style={styles.photoInitial}>
+                    {(currentUser?.full_name || currentUser?.name || 'Y')[0].toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </LinearGradient>
+          </Animated.View>
+
+          {/* Heart in middle */}
+          <Animated.View style={{ transform: [{ scale }] }}>
+            <Ionicons name="heart" size={40} color="#FF4458" />
+          </Animated.View>
+
+          {/* Matched user photo - slides from right */}
+          <Animated.View style={[styles.photoWrapper, { transform: [{ translateX: rightPhoto }] }]}>
+            <LinearGradient
+              colors={['#FF4458', '#FF6B7A']}
+              style={styles.photoGradientBorder}
+            >
+              {matchedPhoto ? (
+                <Image source={{ uri: matchedPhoto }} style={styles.photo} />
+              ) : (
+                <View style={[styles.photo, styles.photoPlaceholder]}>
+                  <Text style={styles.photoInitial}>
+                    {matchedName[0].toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </LinearGradient>
+          </Animated.View>
+        </View>
+
+        {/* Buttons */}
+        <View style={styles.buttons}>
+          <TouchableOpacity onPress={onMessage} activeOpacity={0.8}>
+            <LinearGradient
+              colors={['#FF4458', '#FF2D55']}
+              style={styles.sendBtn}
+            >
+              <Ionicons name="chatbubble" size={20} color="white" />
+              <Text style={styles.sendBtnText}>Send Message</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onKeepSwiping} style={styles.keepBtn} activeOpacity={0.8}>
+            <Text style={styles.keepBtnText}>Keep Swiping</Text>
+          </TouchableOpacity>
+        </View>
+
+      </Animated.View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
-    backgroundColor: colors.overlay,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
   },
-  title: {
+  floatingHeart: {
+    position: 'absolute',
+    bottom: 100,
+  },
+  matchEmoji: {
+    fontSize: 60,
+    marginBottom: 8,
+  },
+  matchTitle: {
     fontSize: 38,
-    fontWeight: "800",
-    color: colors.gold,
-    marginBottom: 36,
-    textAlign: "center",
-    textShadowColor: "rgba(255,215,0,0.5)",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 16,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  photosStage: {
-    width: SCREEN_WIDTH - 48,
-    height: AVATAR_SIZE + 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 28,
-  },
-  avatarWrap: {
-    position: "absolute",
-    zIndex: 2,
-  },
-  avatar: {
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    borderWidth: 4,
-    borderColor: colors.text,
-  },
-  avatarPlaceholder: {
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  initials: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: colors.text,
-  },
-  heartWrap: {
-    position: "absolute",
-    zIndex: 3,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  subtitle: {
-    color: colors.text,
+  matchSubtitle: {
     fontSize: 16,
-    textAlign: "center",
-    marginBottom: 36,
-    paddingHorizontal: 16,
+    color: '#FFFFFF',
+    opacity: 0.8,
+    textAlign: 'center',
   },
-  actions: {
-    width: "100%",
+  photosRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 48,
+  },
+  photoWrapper: {},
+  photoGradientBorder: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photo: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+  },
+  photoPlaceholder: {
+    backgroundColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoInitial: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  buttons: {
+    width: '100%',
     gap: 12,
   },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 28,
+  sendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     paddingVertical: 16,
-    alignItems: "center",
-    width: "100%",
+    borderRadius: 28,
   },
-  primaryButtonText: {
-    color: colors.text,
+  sendBtnText: {
+    color: 'white',
     fontSize: 17,
-    fontWeight: "800",
+    fontWeight: 'bold',
   },
-  secondaryButton: {
-    borderWidth: 2,
-    borderColor: colors.text,
-    borderRadius: 28,
+  keepBtn: {
     paddingVertical: 16,
-    alignItems: "center",
-    width: "100%",
-    backgroundColor: "transparent",
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.4)',
+    alignItems: 'center',
   },
-  secondaryButtonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
+  keepBtnText: {
+    color: 'white',
+    fontSize: 17,
+    fontWeight: '600',
   },
 });

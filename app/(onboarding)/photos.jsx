@@ -8,14 +8,23 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { CONFIG } from "../../constants/config";
+import OnboardingProgress from "../../components/OnboardingProgress";
+import GradientButton from "../../components/GradientButton";
+import BackHeader from "../../components/BackHeader";
 import colors from "../../constants/colors";
+
+const SLOT_WIDTH = (Dimensions.get("window").width - 16 * 2 - 12) / 2;
+const SLOT_HEIGHT = SLOT_WIDTH * (4 / 3);
 
 const TEST_PHOTOS = [
   "https://picsum.photos/seed/test1/400/600",
@@ -45,9 +54,7 @@ export default function PhotosScreen() {
       const token = await AsyncStorage.getItem("voicematch_token");
       const response = await fetch(`${CONFIG.API_BASE_URL}/users/photos`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -94,89 +101,94 @@ export default function PhotosScreen() {
   };
 
   const handleContinue = () => {
-    if (photos.length < 2) {
-      Alert.alert("More photos needed", "Please add at least 2 photos to continue.");
+    if (photos.length < 1) {
+      Alert.alert("Photo required", "Please add at least 1 photo to continue.");
       return;
     }
     router.push("/(onboarding)/voice-intro");
   };
 
+  const slots = Array.from({ length: 6 }, (_, i) => photos[i] || null);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: "66%" }]} />
-      </View>
+    <LinearGradient colors={colors.backgroundGradient} start={{x: 0, y: 0}} end={{x: 0, y: 1}} style={{flex: 1}}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" />
+      <BackHeader title="" />
+      <OnboardingProgress step={2} />
 
-      <Text style={styles.title}>Add your photos</Text>
-      <Text style={styles.subtitle}>Add at least 2 photos to continue</Text>
+      <Text style={styles.title}>Add your best photos 📸</Text>
+      <Text style={styles.subtitle}>Your first photo is your main photo</Text>
 
-      <ScrollView contentContainerStyle={styles.grid}>
-        {photos.map((photo, index) => (
-          <View key={`${photo.url}-${index}`} style={styles.slot}>
-            <Image source={{ uri: photo.url || photo.uri }} style={styles.photo} />
-            <TouchableOpacity style={styles.removeButton} onPress={() => removePhoto(index)}>
-              <Ionicons name="close" size={16} color={colors.text} />
+      <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
+        {slots.map((photo, index) =>
+          photo ? (
+            <View key={`filled-${index}`} style={styles.slot}>
+              <Image source={{ uri: photo.url || photo.uri }} style={styles.photo} />
+              {index === 0 && (
+                <View style={styles.mainBadge}>
+                  <Text style={styles.mainBadgeText}>Main</Text>
+                </View>
+              )}
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => removePhoto(index)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="close" size={14} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              key={`empty-${index}`}
+              style={styles.emptySlot}
+              onPress={pickImage}
+              disabled={uploading}
+              activeOpacity={0.8}
+            >
+              {uploading && index === photos.length ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <>
+                  <Ionicons name="add" size={28} color={colors.primary} />
+                  <Text style={styles.addText}>Add</Text>
+                </>
+              )}
             </TouchableOpacity>
-            {index === 0 && <Text style={styles.mainLabel}>Main Photo</Text>}
-          </View>
-        ))}
-
-        {photos.length < 6 && (
-          <TouchableOpacity style={styles.emptySlot} onPress={pickImage} disabled={uploading}>
-            {uploading ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <>
-                <Ionicons name="add" size={28} color={colors.primary} />
-                <Text style={styles.addText}>Add Photo</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          )
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.testBtn} onPress={addTestPhoto} disabled={uploading}>
+      <TouchableOpacity style={styles.testBtn} onPress={addTestPhoto} disabled={uploading} activeOpacity={0.8}>
         <Text style={styles.testBtnText}>Add Test Photo (Emulator)</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.button, (photos.length < 2 || uploading) && styles.buttonDisabled]}
+      <GradientButton
+        title="Continue"
         onPress={handleContinue}
-        disabled={photos.length < 2 || uploading}
-      >
-        <Text style={styles.buttonText}>Continue</Text>
-      </TouchableOpacity>
+        disabled={photos.length < 1 || uploading}
+        style={styles.footerBtn}
+      />
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 20,
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: colors.surface,
-    borderRadius: 2,
-    marginVertical: 12,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "700",
-    color: colors.text,
+    color: '#1A1A2E',
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 16,
+    color: '#666666',
+    marginBottom: 20,
   },
   grid: {
     flexDirection: "row",
@@ -185,72 +197,76 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   slot: {
-    width: "47%",
-    height: 200,
+    width: SLOT_WIDTH,
+    height: SLOT_HEIGHT,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   photo: {
     width: "100%",
     height: "100%",
-    borderRadius: 16,
   },
-  emptySlot: {
-    width: "47%",
-    height: 200,
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: colors.border,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
+  mainBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  addText: {
-    marginTop: 8,
-    color: colors.textSecondary,
-    fontWeight: "600",
+  mainBadgeText: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "700",
   },
   removeButton: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.overlayLight,
+    top: 10,
+    right: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  mainLabel: {
+  emptySlot: {
+    width: SLOT_WIDTH,
+    height: SLOT_HEIGHT,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: '#FFB3BC',
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: '#FFFFFF',
+  },
+  addText: {
     marginTop: 6,
-    fontSize: 12,
-    color: colors.textSecondary,
+    color: '#666666',
     fontWeight: "600",
+    fontSize: 13,
   },
   testBtn: {
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
+    borderColor: colors.primary,
+    borderRadius: 16,
     paddingVertical: 12,
     alignItems: "center",
     marginBottom: 12,
   },
   testBtnText: {
-    color: colors.textSecondary,
+    color: colors.primary,
     fontWeight: "600",
   },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 25,
-    paddingVertical: 16,
-    alignItems: "center",
+  footerBtn: {
     marginBottom: 20,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "700",
   },
 });

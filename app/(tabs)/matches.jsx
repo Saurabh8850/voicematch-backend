@@ -1,29 +1,30 @@
-import { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useFocusEffect } from "expo-router";
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
+  FlatList,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  Alert,
+  Dimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import MessageListItem from "../../components/MessageListItem";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMatchStore } from "../../store/matchStore";
 import { useAuthStore } from "../../store/authStore";
 import colors from "../../constants/colors";
-import { getInitials } from "../../utils/user";
+import * as api from "../../services/api";
+
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - 48) / 2; // 2 columns with padding
 
 export default function MatchesScreen() {
-  const { matches, isLoading, loadMatches, unmatch } = useMatchStore();
-  const user = useAuthStore((state) => state.user);
+  const insets = useSafeAreaInsets();
+  const { matches, loadMatches } = useMatchStore();
+  const { user } = useAuthStore(); // kept for parity with existing stores (unused)
 
   useFocusEffect(
     useCallback(() => {
@@ -31,208 +32,229 @@ export default function MatchesScreen() {
     }, [loadMatches])
   );
 
-  const newMatches = useMemo(
-    () =>
-      matches
-        .filter((m) => !m.lastMessage)
-        .sort(
-          (a, b) =>
-            new Date(b.matchedAt || b.matched_at) - new Date(a.matchedAt || a.matched_at)
-        )
-        .slice(0, 12),
-    [matches]
-  );
+  const handleLike = async (matchId) => {
+    router.push(`/chat/${matchId}`);
+  };
 
-  const messageMatches = useMemo(
-    () =>
-      [...matches]
-        .filter((m) => m.lastMessage)
-        .sort(
-          (a, b) =>
-            new Date(b.lastMessage?.created_at || b.matchedAt || b.matched_at) -
-            new Date(a.lastMessage?.created_at || a.matchedAt || a.matched_at)
-        ),
-    [matches]
-  );
-
-  const allMatchesSorted = useMemo(
-    () =>
-      [...matches].sort(
-        (a, b) =>
-          new Date(b.lastMessage?.created_at || b.matchedAt || b.matched_at) -
-          new Date(a.lastMessage?.created_at || a.matchedAt || a.matched_at)
-      ),
-    [matches]
-  );
-
-  const onRefresh = useCallback(() => {
+  const handlePass = async (matchId) => {
+    await api.unmatch(matchId);
     loadMatches().catch(() => {});
-  }, [loadMatches]);
-
-  const handleUnmatch = async (matchId) => {
-    try {
-      await unmatch(matchId);
-    } catch (error) {
-      Alert.alert("Error", error.message || "Could not unmatch");
-    }
   };
 
-  const renderNewMatch = (item) => {
-    const otherUser = item.otherUser;
-    const photo = otherUser?.profile_photo_urls?.[0];
+  const handleOpenProfile = (match) => {
+    router.push(`/match-profile/${match.id}`);
+  };
 
-    return (
-      <TouchableOpacity
-        key={item.id}
-        style={styles.newMatch}
-        onPress={() => router.push(`/chat/${item.id}`)}
-      >
-        <View style={styles.newMatchRing}>
+  const renderMatch = useCallback(
+    ({ item }) => {
+      const otherUser = item.otherUser;
+      const photo = otherUser?.profile_photo_urls?.[0];
+
+      return (
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => handleOpenProfile(item)}
+          activeOpacity={0.9}
+        >
           {photo ? (
-            <Image source={{ uri: photo }} style={styles.newMatchAvatar} />
+            <Image source={{ uri: photo }} style={styles.cardPhoto} />
           ) : (
-            <View style={[styles.newMatchAvatar, styles.newMatchPlaceholder]}>
-              <Text style={styles.newMatchInitials}>{getInitials(otherUser?.full_name)}</Text>
-            </View>
+            <LinearGradient
+              colors={["#FF4458", "#FF6B7A"]}
+              style={styles.cardPhoto}
+            >
+              <Text style={styles.cardInitial}>
+                {(otherUser?.full_name || "U")[0].toUpperCase()}
+              </Text>
+            </LinearGradient>
           )}
-        </View>
-        <Text style={styles.newMatchName} numberOfLines={1}>
-          {(otherUser?.full_name || "Match").split(" ")[0]}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.8)"]}
+            style={styles.cardGradient}
+          />
+
+          <View style={styles.cardInfo}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {otherUser?.full_name?.split(" ")[0] || "User"}, {otherUser?.age || ""}
+            </Text>
+          </View>
+
+          <View style={styles.cardActions}>
+            <TouchableOpacity style={styles.passBtn} onPress={() => handlePass(item.id)}>
+              <Ionicons name="close" size={18} color="#999" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.likeBtn} onPress={() => handleLike(item.id)}>
+              <Ionicons name="heart" size={18} color="white" />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      );
+    },
+    [loadMatches]
+  );
+
+  const today = useMemo(() => new Date().toDateString(), []);
+  const todayMatches = useMemo(
+    () =>
+      matches.filter(
+        (m) => new Date(m.matchedAt || m.matched_at).toDateString() === today
+      ),
+    [matches, today]
+  );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      <Text style={styles.title}>Matches</Text>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Matches</Text>
+        <View style={styles.countBadge}>
+          <Text style={styles.countText}>{matches.length}</Text>
+        </View>
+      </View>
 
-      {isLoading && matches.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+      <Text style={styles.subtitle}>
+        This is a list of people who liked you and your matches.
+      </Text>
+
+      {matches.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="heart-outline" size={64} color={colors.primary} />
+          <Text style={styles.emptyTitle}>No matches yet</Text>
+          <Text style={styles.emptySubtitle}>Keep swiping to find your match!</Text>
         </View>
       ) : (
         <FlatList
-          data={messageMatches.length > 0 ? messageMatches : allMatchesSorted}
+          data={matches}
           keyExtractor={(item) => item.id}
-          refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor={colors.primary} />
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.grid}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={() =>
+            todayMatches.length > 0 ? (
+              <Text style={styles.dateLabel}>Today</Text>
+            ) : null
           }
-          ListHeaderComponent={
-            <>
-              {newMatches.length > 0 && (
-                <View style={styles.newSection}>
-                  <Text style={styles.sectionTitle}>New Matches</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {newMatches.map(renderNewMatch)}
-                  </ScrollView>
-                </View>
-              )}
-              <Text style={styles.sectionTitle}>Messages</Text>
-            </>
-          }
-          renderItem={({ item }) => (
-            <MessageListItem
-              item={item}
-              currentUserId={user?.id}
-              avatarSize={50}
-              onUnmatch={handleUnmatch}
-            />
-          )}
-          ListEmptyComponent={
-            matches.length === 0 ? (
-              <View style={styles.center}>
-                <Ionicons name="heart-outline" size={48} color={colors.primary} />
-                <Text style={styles.emptyText}>No matches yet — keep swiping!</Text>
-              </View>
-            ) : (
-              <View style={styles.center}>
-                <Text style={styles.emptySub}>Your new matches are above. Start a conversation!</Text>
-              </View>
-            )
-          }
-          contentContainerStyle={matches.length === 0 ? styles.emptyContainer : undefined}
+          renderItem={renderMatch}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: colors.text,
-    paddingHorizontal: 20,
+  container: { flex: 1, backgroundColor: colors.background },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 12,
+    gap: 10,
   },
-  newSection: {
-    marginBottom: 8,
+  title: { fontSize: 28, fontWeight: "bold", color: colors.text },
+  countBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.text,
-    paddingHorizontal: 20,
-    marginBottom: 12,
-    marginTop: 4,
-  },
-  newMatch: {
-    alignItems: "center",
-    marginLeft: 20,
-    width: 76,
-  },
-  newMatchRing: {
-    padding: 3,
-    borderRadius: 40,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  newMatchAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-  },
-  newMatchPlaceholder: {
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  newMatchInitials: {
-    color: colors.text,
-    fontWeight: "700",
-    fontSize: 20,
-  },
-  newMatchName: {
-    marginTop: 8,
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: "center",
-    width: 76,
-  },
-  center: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 48,
-    paddingHorizontal: 24,
-  },
-  emptyContainer: {
-    flexGrow: 1,
-  },
-  emptyText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
-  emptySub: {
+  countText: { color: "white", fontWeight: "bold", fontSize: 14 },
+  subtitle: {
     fontSize: 14,
+    color: colors.textSecondary,
+    paddingHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  dateLabel: {
+    fontSize: 13,
     color: colors.textMuted,
     textAlign: "center",
+    marginBottom: 12,
   },
+  grid: { paddingHorizontal: 16, paddingBottom: 100 },
+  row: { justifyContent: "space-between", marginBottom: 16 },
+
+  card: {
+    width: CARD_WIDTH,
+    height: CARD_WIDTH * 1.4,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: colors.card,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  cardPhoto: {
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardInitial: { fontSize: 48, fontWeight: "bold", color: "white" },
+  cardGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "60%",
+  },
+  cardInfo: {
+    position: "absolute",
+    bottom: 48,
+    left: 12,
+    right: 12,
+  },
+  cardName: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  cardActions: {
+    position: "absolute",
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+  },
+  passBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "white",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  likeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 3,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  emptyTitle: { fontSize: 22, fontWeight: "bold", color: colors.text },
+  emptySubtitle: { fontSize: 15, color: colors.textSecondary },
 });

@@ -17,10 +17,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
 import VoicePlayer from "../../components/VoicePlayer";
 import VoiceRecorder from "../../components/VoiceRecorder";
 import IcebreakerModal from "../../components/IcebreakerModal";
+import BackHeader from "../../components/BackHeader";
 import { useChatStore } from "../../store/chatStore";
 import { useMatchStore } from "../../store/matchStore";
 import { useAuthStore } from "../../store/authStore";
@@ -44,7 +46,7 @@ function VoiceMessageBubble({ message, isOwn }) {
   const BubbleWrapper = isOwn ? LinearGradient : View;
   const bubbleProps = isOwn
     ? {
-        colors: [colors.primary, colors.primaryDark],
+        colors: colors.gradientButton,
         start: { x: 0, y: 0 },
         end: { x: 1, y: 1 },
         style: styles.ownBubble,
@@ -220,7 +222,7 @@ export default function ChatScreen() {
             <VoiceMessageBubble message={item} isOwn={isOwn} />
           ) : isOwn ? (
             <LinearGradient
-              colors={[colors.primary, colors.primaryDark]}
+              colors={colors.gradientButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.ownBubble}
@@ -241,37 +243,15 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-
-        {otherPhoto ? (
-          <Image source={{ uri: otherPhoto }} style={styles.headerAvatar} />
-        ) : (
-          <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
-            <Text style={styles.headerAvatarInitials}>{getInitials(otherUser?.full_name)}</Text>
-          </View>
-        )}
-
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{otherUser?.full_name || "Chat"}</Text>
-          <View style={styles.onlineRow}>
-            {otherOnline && <View style={styles.onlineDot} />}
-            <Text style={styles.onlineText}>{otherOnline ? "Online" : timeAgo(otherUser?.last_active) || "Offline"}</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity onPress={() => setIcebreakerVisible(true)} style={styles.headerButton}>
-          <Text style={styles.sparkle}>✨</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="videocam-outline" size={22} color={colors.text} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleCall} style={styles.headerButton}>
-          <Ionicons name="call-outline" size={22} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+      <StatusBar style="dark" />
+      <BackHeader 
+        title={otherUser?.full_name || 'Chat'} 
+        rightComponent={
+          <TouchableOpacity onPress={handleCall}>
+            <Ionicons name="call-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
+        }
+      />
 
       {isLoading && matchMessages.length === 0 ? (
         <View style={styles.center}>
@@ -299,6 +279,10 @@ export default function ChatScreen() {
         keyboardVerticalOffset={80}
       >
         <View style={styles.inputBar}>
+          <TouchableOpacity onPress={() => setIcebreakerVisible(true)} style={styles.iconButton} activeOpacity={0.8}>
+            <Text style={styles.sparkle}>✨</Text>
+          </TouchableOpacity>
+
           <TextInput
             ref={inputRef}
             style={styles.input}
@@ -325,8 +309,10 @@ export default function ChatScreen() {
             )}
           </Pressable>
 
-          <TouchableOpacity style={styles.sendButton} onPress={handleSend} disabled={sending}>
-            <Ionicons name="send" size={18} color={colors.text} />
+          <TouchableOpacity onPress={handleSend} disabled={sending} activeOpacity={0.8}>
+            <LinearGradient colors={colors.gradientButton} style={styles.sendButton}>
+              <Ionicons name="arrow-up" size={20} color={colors.text} />
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -362,7 +348,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: "row",
@@ -370,16 +356,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.background,
+    borderBottomColor: '#FFE8EC',
+    backgroundColor: '#FFFFFF',
   },
   headerButton: {
     padding: 8,
   },
   headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     marginRight: 4,
   },
   headerAvatarPlaceholder: {
@@ -399,7 +385,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: colors.text,
+    color: '#1A1A2E',
   },
   onlineRow: {
     flexDirection: "row",
@@ -428,7 +414,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   emptyText: {
-    color: colors.textSecondary,
+    color: '#666666',
     fontSize: 15,
   },
   messagesList: {
@@ -467,16 +453,16 @@ const styles = StyleSheet.create({
   },
   ownBubble: {
     borderRadius: 20,
-    borderBottomRightRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderBottomRightRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   otherBubble: {
-    backgroundColor: colors.bubbleOther,
+    backgroundColor: '#FFF0F3',
     borderRadius: 20,
-    borderBottomLeftRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   messageText: {
     fontSize: 15,
@@ -486,7 +472,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   otherText: {
-    color: colors.text,
+    color: '#1A1A2E',
   },
   timestamp: {
     fontSize: 11,
@@ -503,7 +489,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#FFE8EC',
     gap: 8,
   },
   input: {
@@ -513,10 +501,10 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    color: colors.text,
-    backgroundColor: colors.card,
+    color: '#1A1A2E',
+    backgroundColor: '#FFF5F7',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#FFE8EC',
   },
   iconButton: {
     width: 44,
@@ -528,7 +516,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },

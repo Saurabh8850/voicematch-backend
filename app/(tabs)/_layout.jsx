@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Platform } from "react-native";
 import { useMatchStore } from "../../store/matchStore";
 import { useAuthStore } from "../../store/authStore";
 import colors from "../../constants/colors";
@@ -23,47 +24,53 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
+        tabBarInactiveTintColor: colors.tabInactive,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+          marginBottom: Platform.OS === "ios" ? 0 : 4,
         },
-      }}
+        tabBarStyle: {
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.tabBarBorder,
+          borderTopWidth: 1,
+          height: Platform.OS === "ios" ? 88 : 64,
+          paddingTop: 6,
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.15,
+          shadowRadius: 8,
+          elevation: 12,
+        },
+        tabBarIcon: ({ color, focused }) => {
+          const icons = {
+            index: focused ? "flame" : "flame-outline",
+            matches: focused ? "heart" : "heart-outline",
+            chat: focused ? "chatbubble" : "chatbubble-outline",
+            voiceRoom: focused ? "mic" : "mic-outline",
+            profile: focused ? "person" : "person-outline",
+          };
+          return (
+            <Ionicons name={icons[route.name] || "ellipse"} size={24} color={color} />
+          );
+        },
+      })}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Discover",
-          tabBarIcon: ({ color, size }) => <Ionicons name="flame" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="matches"
-        options={{
-          title: "Matches",
-          tabBarIcon: ({ color, size }) => <Ionicons name="heart" size={size} color={color} />,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: "Discover" }} />
+      <Tabs.Screen name="matches" options={{ title: "Matches" }} />
       <Tabs.Screen
         name="chat"
         options={{
           title: "Chat",
           tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble" size={size} color={color} />
-          ),
         }}
       />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
-        }}
-      />
+      <Tabs.Screen name="voiceRoom" options={{ title: "Rooms" }} />
+      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
     </Tabs>
   );
 }

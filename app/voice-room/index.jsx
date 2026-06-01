@@ -14,10 +14,12 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as api from "../../services/api";
+import BackHeader from "../../components/BackHeader";
 import colors from "../../constants/colors";
 import { getInitials } from "../../utils/user";
 
@@ -182,7 +184,7 @@ export default function VoiceRoomHub() {
   const renderRoom = ({ item }) => {
     const hostPhoto = item.host?.profile_photo_urls?.[0];
     return (
-      <TouchableOpacity style={styles.roomCard} onPress={() => handleJoinRoom(item)}>
+      <TouchableOpacity style={styles.roomCard} onPress={() => handleJoinRoom(item)} activeOpacity={0.8}>
         <View style={styles.roomLeft}>
           {hostPhoto ? (
             <Image source={{ uri: hostPhoto }} style={styles.roomAvatar} />
@@ -193,33 +195,28 @@ export default function VoiceRoomHub() {
           )}
           <View style={styles.roomInfo}>
             <Text style={styles.roomName}>{item.name}</Text>
-            <View style={styles.topicTag}>
-              <Text style={styles.topicText}>{item.topic}</Text>
+            <View style={styles.roomMeta}>
+              <View style={styles.topicTag}>
+                <Text style={styles.topicText}>{item.topic}</Text>
+              </View>
+              <Text style={styles.roomCount}>
+                {item.memberCount}/{item.maxMembers} members
+              </Text>
             </View>
           </View>
         </View>
-        <Text style={styles.roomCount}>
-          {item.memberCount}/{item.maxMembers}
-        </Text>
+        <View style={styles.joinBtn}>
+          <Text style={styles.joinBtnText}>Join</Text>
+        </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topRow}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Voice Room</Text>
-        {tab === "rooms" ? (
-          <TouchableOpacity onPress={() => setCreateVisible(true)} style={styles.createBtn}>
-            <Ionicons name="add" size={22} color={colors.text} />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.createBtn} />
-        )}
-      </View>
+    <LinearGradient colors={colors.backgroundGradient} start={{x: 0, y: 0}} end={{x: 0, y: 1}} style={{flex: 1}}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" />
+      <BackHeader title="Voice Room 🎙️" />
 
       <View style={styles.tabs}>
         <TouchableOpacity
@@ -247,8 +244,10 @@ export default function VoiceRoomHub() {
               </Animated.View>
               <Text style={styles.randomHeading}>Find Someone to Talk To</Text>
               <Text style={styles.randomSub}>Get matched with someone new for a voice chat</Text>
-              <TouchableOpacity style={styles.startBtn} onPress={startMatching}>
-                <Text style={styles.startBtnText}>Start Matching</Text>
+              <TouchableOpacity onPress={startMatching} activeOpacity={0.8}>
+                <LinearGradient colors={colors.gradientButton} style={styles.startBtn}>
+                  <Text style={styles.startBtnText}>Find Someone</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </>
           ) : (
@@ -335,11 +334,12 @@ export default function VoiceRoomHub() {
         </View>
       </Modal>
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   topRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 20,
     fontWeight: "800",
-    color: colors.text,
+    color: '#1A1A2E',
   },
   createBtn: {
     width: 40,
@@ -372,8 +372,8 @@ const styles = StyleSheet.create({
   },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center" },
   tabActive: { backgroundColor: colors.primary },
-  tabText: { color: colors.textSecondary, fontWeight: "700" },
-  tabTextActive: { color: colors.text },
+  tabText: { color: '#666666', fontWeight: "700" },
+  tabTextActive: { color: '#1A1A2E' },
   randomContent: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 },
   pulseOuter: {
     width: 190,
@@ -400,27 +400,29 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   startBtn: {
-    backgroundColor: colors.primary,
     paddingHorizontal: 40,
     paddingVertical: 16,
     borderRadius: 28,
   },
-  startBtnText: { color: colors.text, fontSize: 17, fontWeight: "800" },
-  findingText: { color: colors.text, fontSize: 18, fontWeight: "600", marginTop: 20 },
+  startBtnText: { color: '#FFFFFF', fontSize: 17, fontWeight: "800" },
+  findingText: { color: '#1A1A2E', fontSize: 18, fontWeight: "600", marginTop: 20 },
   cancelBtn: { marginTop: 24, padding: 12 },
-  cancelText: { color: colors.textSecondary, fontSize: 15 },
+  cancelText: { color: '#666666', fontSize: 15 },
   roomsContent: { flex: 1, paddingHorizontal: 20, paddingTop: 12 },
-  sectionLabel: { fontSize: 16, fontWeight: "700", color: colors.text, marginBottom: 12 },
+  sectionLabel: { fontSize: 16, fontWeight: "700", color: '#1A1A2E', marginBottom: 12 },
   roomCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   roomLeft: { flexDirection: "row", alignItems: "center", flex: 1, gap: 12 },
   roomAvatar: { width: 48, height: 48, borderRadius: 24 },
@@ -431,19 +433,28 @@ const styles = StyleSheet.create({
   },
   roomInitials: { color: colors.text, fontWeight: "700" },
   roomInfo: { flex: 1 },
-  roomName: { color: colors.text, fontWeight: "700", fontSize: 16 },
+  roomMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" },
+  roomName: { color: '#1A1A2E', fontWeight: "700", fontSize: 16 },
   topicTag: {
     alignSelf: "flex-start",
     marginTop: 6,
-    backgroundColor: colors.surface,
+    backgroundColor: '#FFF5F7',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
-  topicText: { color: colors.textSecondary, fontSize: 11, fontWeight: "600" },
-  roomCount: { color: colors.primary, fontWeight: "800", fontSize: 14 },
+  topicText: { color: '#666666', fontSize: 11, fontWeight: "600" },
+  roomCount: { color: '#666666', fontWeight: "600", fontSize: 13 },
+  joinBtn: {
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  joinBtnText: { color: colors.primary, fontWeight: "700", fontSize: 14 },
   emptyRooms: { alignItems: "center", paddingTop: 48 },
-  emptyText: { color: colors.textMuted, marginTop: 12 },
+  emptyText: { color: '#999999', marginTop: 12 },
   modalOverlay: {
     flex: 1,
     backgroundColor: colors.overlayLight,
@@ -457,7 +468,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  modalTitle: { fontSize: 20, fontWeight: "800", color: colors.text, marginBottom: 16 },
+  modalTitle: { fontSize: 20, fontWeight: "800", color: '#1A1A2E', marginBottom: 16 },
   input: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -468,7 +479,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     marginBottom: 16,
   },
-  modalLabel: { color: colors.textSecondary, fontWeight: "600", marginBottom: 8 },
+  modalLabel: { color: '#666666', fontWeight: "600", marginBottom: 8 },
   topicRow: { marginBottom: 16 },
   topicChip: {
     paddingHorizontal: 12,

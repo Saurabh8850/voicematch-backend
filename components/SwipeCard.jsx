@@ -21,8 +21,8 @@ export const CARD_HEIGHT = SCREEN_HEIGHT * 0.72;
 const SWIPE_THRESHOLD = 120;
 
 const STACK_BEHIND = {
-  1: { scale: 0.95, translateY: 10 },
-  2: { scale: 0.9, translateY: 20 },
+  1: { scale: 0.95, translateY: 8, opacity: 0.7 },
+  2: { scale: 0.9, translateY: 16, opacity: 0.4 },
 };
 
 export default function SwipeCard({
@@ -100,10 +100,12 @@ export default function SwipeCard({
     ? {
         transform: [{ translateX: pan.x }, { translateY: pan.y }, { rotate }],
         zIndex: 30,
+        opacity: 1,
       }
     : {
         transform: [{ scale: behind.scale }, { translateY: behind.translateY }],
         zIndex: 30 - stackIndex,
+        opacity: behind.opacity,
       };
 
   const cardContent = (
@@ -111,55 +113,55 @@ export default function SwipeCard({
       {photoUrl ? (
         <Image source={{ uri: photoUrl }} style={styles.photo} resizeMode="cover" />
       ) : (
-        <LinearGradient colors={[colors.primary, colors.primaryDark]} style={styles.photo}>
+        <LinearGradient colors={colors.gradientPrimary} style={styles.photo}>
           <Text style={styles.initials}>{getInitials(displayName)}</Text>
         </LinearGradient>
       )}
 
-      <LinearGradient
-        colors={[colors.transparent, "rgba(0,0,0,0.4)", "rgba(0,0,0,0.92)"]}
-        style={styles.gradient}
-      />
-
-      {distance != null && (
-        <View style={styles.distanceBadge}>
-          <Ionicons name="location" size={12} color={colors.text} />
-          <Text style={styles.distanceText}>{distance} km away</Text>
-        </View>
-      )}
+      <LinearGradient colors={colors.gradientCard} style={styles.gradient} />
 
       {user?.voice_intro_url ? (
         <TouchableOpacity style={styles.voiceButton} activeOpacity={0.85}>
-          <Ionicons name="mic" size={20} color={colors.text} />
+          <Ionicons name="mic" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       ) : null}
 
-      <View style={styles.info}>
-        <Text style={styles.name}>
-          {displayName}
-          {age != null ? `, ${age}` : ""}
-        </Text>
-        <Text style={styles.location}>{user?.location_label || "Nearby"}</Text>
-        <Text style={styles.bio} numberOfLines={2}>
-          {user?.bio || "Say hi with a voice intro!"}
-        </Text>
-        <View style={styles.tagsRow}>
-          {interests.map((tag) => (
-            <View key={tag} style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
-            </View>
-          ))}
-        </View>
+      <Text style={styles.name}>
+        {displayName}
+        {age != null ? `, ${age}` : ""}
+      </Text>
+      <Text style={styles.location}>
+        📍 {distance != null ? `${distance} km away` : user?.location_label || "Nearby"}
+      </Text>
+      <Text style={styles.bio} numberOfLines={2}>
+        {user?.bio || "Say hi with a voice intro!"}
+      </Text>
+      <View style={styles.tagsRow}>
+        {interests.slice(0, 4).map((tag) => (
+          <View key={tag} style={styles.tag}>
+            <Text style={styles.tagText}>{tag}</Text>
+          </View>
+        ))}
       </View>
 
       {isTop && (
         <>
-          <Animated.View style={[styles.likeStamp, { opacity: likeOpacity }]} pointerEvents="none">
-            <Ionicons name="heart" size={32} color={colors.success} />
+          <Animated.View style={[styles.likeOverlay, { opacity: likeOpacity }]} pointerEvents="none">
+            <LinearGradient
+              colors={["rgba(76,175,80,0.6)", "transparent"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={StyleSheet.absoluteFill}
+            />
             <Text style={styles.likeStampText}>LIKE</Text>
           </Animated.View>
-          <Animated.View style={[styles.nopeStamp, { opacity: nopeOpacity }]} pointerEvents="none">
-            <Ionicons name="close" size={32} color={colors.primary} />
+          <Animated.View style={[styles.nopeOverlay, { opacity: nopeOpacity }]} pointerEvents="none">
+            <LinearGradient
+              colors={["transparent", "rgba(255,68,88,0.6)"]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={StyleSheet.absoluteFill}
+            />
             <Text style={styles.nopeStampText}>NOPE</Text>
           </Animated.View>
         </>
@@ -175,11 +177,7 @@ export default function SwipeCard({
 
   if (isTop) {
     return (
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={styles.slot}
-        pointerEvents="box-none"
-      >
+      <Animated.View {...panResponder.panHandlers} style={styles.slot} pointerEvents="box-none">
         {cardContent}
       </Animated.View>
     );
@@ -204,11 +202,9 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: 20,
+    borderRadius: 24,
     backgroundColor: colors.card,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   photo: {
     width: "100%",
@@ -226,37 +222,18 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: "60%",
-  },
-  distanceBadge: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  distanceText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: "600",
+    height: "50%",
   },
   voiceButton: {
     position: "absolute",
     top: 16,
     right: 16,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,68,88,0.75)",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
   },
   hiddenPlayer: {
     position: "absolute",
@@ -264,90 +241,78 @@ const styles = StyleSheet.create({
     width: 1,
     height: 1,
   },
-  info: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 80,
-  },
   name: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 28,
     fontWeight: "800",
-    textShadowColor: "rgba(0,0,0,0.75)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
   },
   location: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 14,
-    marginTop: 4,
-    marginBottom: 8,
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    position: 'absolute',
+    bottom: 78,
+    left: 20,
   },
   bio: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 12,
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    position: 'absolute',
+    bottom: 56,
+    left: 20,
+    right: 20,
   },
   tagsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
   },
   tag: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
   tagText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: "600",
   },
-  likeStamp: {
-    position: "absolute",
-    top: 48,
-    left: 24,
-    transform: [{ rotate: "-18deg" }],
-    alignItems: "center",
-    borderWidth: 4,
-    borderColor: colors.success,
-    borderRadius: 8,
-    padding: 8,
-    backgroundColor: "rgba(0,0,0,0.35)",
+  likeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    paddingLeft: 24,
   },
   likeStampText: {
-    color: colors.success,
-    fontSize: 22,
+    color: '#4CAF50',
+    fontSize: 42,
     fontWeight: "900",
-    letterSpacing: 2,
+    letterSpacing: 4,
+    transform: [{ rotate: "-15deg" }],
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  nopeStamp: {
-    position: "absolute",
-    top: 48,
-    right: 24,
-    transform: [{ rotate: "18deg" }],
-    alignItems: "center",
-    borderWidth: 4,
-    borderColor: colors.primary,
-    borderRadius: 8,
-    padding: 8,
-    backgroundColor: "rgba(0,0,0,0.35)",
+  nopeOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    paddingRight: 24,
   },
   nopeStampText: {
-    color: colors.primary,
-    fontSize: 22,
+    color: '#FF4458',
+    fontSize: 42,
     fontWeight: "900",
-    letterSpacing: 2,
+    letterSpacing: 4,
+    transform: [{ rotate: "15deg" }],
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
 });

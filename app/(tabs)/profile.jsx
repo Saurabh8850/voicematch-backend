@@ -14,11 +14,13 @@ import {
   Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../../store/authStore";
+import { useMatchStore } from "../../store/matchStore";
 import VoicePlayer from "../../components/VoicePlayer";
 import VoiceRecorder from "../../components/VoiceRecorder";
 import * as api from "../../services/api";
@@ -36,8 +38,17 @@ function profileCompletion(user) {
   return Math.min(100, score);
 }
 
+const MENU_ITEMS = [
+  { icon: "create-outline", label: "Edit Profile", action: "edit" },
+  { icon: "images-outline", label: "My Photos", action: "photos" },
+  { icon: "mic-outline", label: "Voice Intro", action: "voice" },
+  { icon: "notifications-outline", label: "Notifications", action: "notif" },
+  { icon: "help-circle-outline", label: "Help", action: "help" },
+];
+
 export default function ProfileScreen() {
   const { user, logout, updateUser } = useAuthStore();
+  const matches = useMatchStore((state) => state.matches);
   const [loading, setLoading] = useState(true);
 
   const [editVisible, setEditVisible] = useState(false);
@@ -81,11 +92,28 @@ export default function ProfileScreen() {
   const age = getAge(user);
   const completion = useMemo(() => profileCompletion(user), [user]);
 
+  const stats = useMemo(
+    () => ({
+      matches: matches.length,
+      likes: user?.likes_received || 0,
+      views: user?.profile_views || 0,
+    }),
+    [matches.length, user]
+  );
+
   const openEdit = () => {
     setEditName(user?.full_name || "");
     setEditAge(age ? String(age) : "");
     setEditBio(user?.bio || "");
     setEditVisible(true);
+  };
+
+  const handleMenu = (action) => {
+    if (action === "edit") openEdit();
+    else if (action === "photos") router.push("/(onboarding)/photos");
+    else if (action === "voice") setVoiceVisible(true);
+    else if (action === "notif") setNotifVisible(true);
+    else if (action === "help") Alert.alert("Help", "Contact support@voicematch.app");
   };
 
   const saveProfile = async () => {
@@ -110,7 +138,6 @@ export default function ProfileScreen() {
       });
       updateUser(response.data?.user || { full_name: name, age: ageNum, bio: editBio.trim() });
       setEditVisible(false);
-      Alert.alert("Saved", "Profile updated successfully.");
     } catch (error) {
       Alert.alert("Save failed", error.message || "Could not update profile");
     } finally {
@@ -142,7 +169,6 @@ export default function ProfileScreen() {
       if (url) {
         updateUser({ voice_intro_url: url });
         setRecordedUri(null);
-        Alert.alert("Uploaded", "Your voice intro is live!");
       }
     } catch (error) {
       Alert.alert("Upload failed", error.message || "Could not upload voice intro");
@@ -153,12 +179,8 @@ export default function ProfileScreen() {
 
   const saveNotifications = async () => {
     try {
-      await AsyncStorage.setItem(
-        NOTIF_KEY,
-        JSON.stringify({ matchNotif, messageNotif })
-      );
+      await AsyncStorage.setItem(NOTIF_KEY, JSON.stringify({ matchNotif, messageNotif }));
       setNotifVisible(false);
-      Alert.alert("Saved", "Notification preferences saved.");
     } catch (error) {
       Alert.alert("Error", error.message || "Could not save preferences");
     }
@@ -167,94 +189,88 @@ export default function ProfileScreen() {
   const confirmLogout = () => {
     Alert.alert("Log out", "Are you sure you want to log out?", [
       { text: "Cancel", style: "cancel" },
-      {
-        text: "Log out",
-        style: "destructive",
-        onPress: () => logout(),
-      },
+      { text: "Log out", style: "destructive", onPress: () => logout() },
     ]);
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <LinearGradient colors={colors.backgroundGradient} start={{x: 0, y: 0}} end={{x: 0, y: 1}} style={{flex: 1}}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.screenTitle}>Profile</Text>
+        <View style={styles.headerCard}>
+          <View style={styles.avatarWrap}>
+            {photo ? (
+              <Image source={{ uri: photo }} style={styles.avatar} />
+            ) : (
+              <LinearGradient colors={colors.gradientPrimary} style={styles.avatar}>
+                <Text style={styles.avatarInitials}>{getInitials(user?.full_name)}</Text>
+              </LinearGradient>
+            )}
+            <TouchableOpacity style={styles.editAvatarBtn} onPress={openEdit} activeOpacity={0.8}>
+              <Ionicons name="pencil" size={14} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.name}>
+            {user?.full_name || "VoiceMatch User"}
+            {age ? `, ${age}` : ""}
+          </Text>
+          <Text style={styles.phone}>{user?.phone ? `+91 ${user.phone}` : ""}</Text>
 
-        <View style={styles.header}>
-          {photo ? (
-            <Image source={{ uri: photo }} style={styles.avatar} />
-          ) : (
-            <LinearGradient colors={[colors.primary, colors.primaryDark]} style={styles.avatar}>
-              <Text style={styles.avatarInitials}>{getInitials(user?.full_name)}</Text>
-            </LinearGradient>
-          )}
-          <View style={styles.headerText}>
-            <Text style={styles.name}>
-              {user?.full_name || "VoiceMatch User"}
-              {age ? `, ${age}` : ""}
-            </Text>
-            <Text style={styles.phone}>{user?.phone ? `+91 ${user.phone}` : ""}</Text>
-            {user?.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+          <View style={styles.statsRow}>
+            {[
+              { value: stats.matches, label: "Matches" },
+              { value: stats.likes, label: "Likes" },
+              { value: stats.views, label: "Views" },
+            ].map((stat) => (
+              <View key={stat.label} style={styles.statItem}>
+                <Text style={styles.statValue}>{stat.value}</Text>
+                <Text style={styles.statLabel}>{stat.label}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
         <View style={styles.completionCard}>
-          <View style={styles.completionHeader}>
-            <Text style={styles.completionTitle}>Profile completion</Text>
-            <Text style={styles.completionPercent}>{completion}%</Text>
-          </View>
+          <Text style={styles.completionTitle}>Complete your profile</Text>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${completion}%` }]} />
           </View>
+          <Text style={styles.completionPercent}>{completion}% complete</Text>
         </View>
 
-        <TouchableOpacity style={styles.primaryBtn} onPress={openEdit}>
-          <Ionicons name="create-outline" size={20} color={colors.text} />
-          <Text style={styles.primaryBtnText}>Edit Profile</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/(onboarding)/photos")}>
-          <Ionicons name="images-outline" size={22} color={colors.primary} />
-          <Text style={styles.menuText}>Edit Photos</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => setVoiceVisible(true)}>
-          <Ionicons name="mic-outline" size={22} color={colors.primary} />
-          <Text style={styles.menuText}>Voice Intro</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => setNotifVisible(true)}>
-          <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-          <Text style={styles.menuText}>Notifications</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity activeOpacity={0.9} onPress={() => router.push("/premium")} style={styles.premiumWrap}>
-          <LinearGradient
-            colors={[colors.primary, colors.premiumGradientEnd]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.premiumCard}
+        {MENU_ITEMS.map((item) => (
+          <TouchableOpacity
+            key={item.action}
+            style={styles.menuItem}
+            onPress={() => handleMenu(item.action)}
+            activeOpacity={0.8}
           >
+            <Ionicons name={item.icon} size={22} color={colors.primary} />
+            <Text style={styles.menuText}>{item.label}</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        ))}
+
+        <TouchableOpacity activeOpacity={0.9} onPress={() => router.push("/premium")}>
+          <LinearGradient colors={colors.gradientGold} style={styles.premiumCard}>
             <Ionicons name="diamond" size={28} color={colors.gold} />
             <View style={styles.premiumTextWrap}>
-              <Text style={styles.premiumTitle}>Go Premium</Text>
-              <Text style={styles.premiumSub}>Unlimited likes & more</Text>
+              <Text style={styles.premiumTitle}>Go Premium 👑</Text>
+              <Text style={styles.premiumSub}>Unlock unlimited matches</Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color={colors.text} />
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={confirmLogout}>
-          <Text style={styles.logoutText}>Log Out</Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={confirmLogout} activeOpacity={0.8}>
+          <Ionicons name="log-out-outline" size={20} color={colors.primary} />
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
         {loading && <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />}
       </ScrollView>
 
-      {/* Edit Profile Modal */}
       <Modal visible={editVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -283,10 +299,10 @@ export default function ProfileScreen() {
               multiline
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setEditVisible(false)}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setEditVisible(false)} activeOpacity={0.8}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSave} onPress={saveProfile} disabled={savingProfile}>
+              <TouchableOpacity style={styles.modalSave} onPress={saveProfile} disabled={savingProfile} activeOpacity={0.8}>
                 {savingProfile ? (
                   <ActivityIndicator color={colors.text} />
                 ) : (
@@ -298,20 +314,15 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Voice Intro Modal */}
       <Modal visible={voiceVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Voice Intro</Text>
             {user?.voice_intro_url ? (
-              <View style={styles.voicePlayerWrap}>
-                <VoicePlayer audioUrl={user.voice_intro_url} size="medium" />
-                <Text style={styles.voiceHint}>Current intro</Text>
-              </View>
+              <VoicePlayer audioUrl={user.voice_intro_url} size="medium" />
             ) : (
               <Text style={styles.voiceHint}>No voice intro yet</Text>
             )}
-
             <Pressable
               style={styles.recordBtn}
               onPressIn={() => setIsRecording(true)}
@@ -322,26 +333,16 @@ export default function ProfileScreen() {
                 {isRecording ? "Recording..." : "Hold to record new intro"}
               </Text>
             </Pressable>
-
-            {recordedUri && (
-              <Text style={styles.recordedNote}>Recording ready — tap Upload</Text>
-            )}
-
             <VoiceRecorder
               isRecording={isRecording}
               onRecordingChange={setIsRecording}
               onRecordComplete={handleVoiceRecorded}
             />
-
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setVoiceVisible(false)}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setVoiceVisible(false)} activeOpacity={0.8}>
                 <Text style={styles.modalCancelText}>Close</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalSave}
-                onPress={uploadVoiceIntro}
-                disabled={uploadingVoice}
-              >
+              <TouchableOpacity style={styles.modalSave} onPress={uploadVoiceIntro} disabled={uploadingVoice} activeOpacity={0.8}>
                 {uploadingVoice ? (
                   <ActivityIndicator color={colors.text} />
                 ) : (
@@ -353,130 +354,141 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Notifications Modal */}
       <Modal visible={notifVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Notifications</Text>
             <View style={styles.switchRow}>
               <Text style={styles.switchLabel}>New matches</Text>
-              <Switch
-                value={matchNotif}
-                onValueChange={setMatchNotif}
-                trackColor={{ true: colors.primary, false: colors.border }}
-              />
+              <Switch value={matchNotif} onValueChange={setMatchNotif} trackColor={{ true: colors.primary, false: colors.border }} />
             </View>
             <View style={styles.switchRow}>
               <Text style={styles.switchLabel}>Messages</Text>
-              <Switch
-                value={messageNotif}
-                onValueChange={setMessageNotif}
-                trackColor={{ true: colors.primary, false: colors.border }}
-              />
+              <Switch value={messageNotif} onValueChange={setMessageNotif} trackColor={{ true: colors.primary, false: colors.border }} />
             </View>
-            <TouchableOpacity style={styles.modalSaveFull} onPress={saveNotifications}>
+            <TouchableOpacity style={styles.modalSaveFull} onPress={saveNotifications} activeOpacity={0.8}>
               <Text style={styles.modalSaveText}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.modalCancelFull} onPress={() => setNotifVisible(false)}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 20, paddingBottom: 40 },
-  screenTitle: { fontSize: 28, fontWeight: "800", color: colors.text, marginTop: 8, marginBottom: 16 },
-  header: { flexDirection: "row", gap: 16, marginBottom: 20 },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 16, paddingBottom: 40 },
+  headerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  avatarWrap: { position: "relative", marginBottom: 12 },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,
     borderColor: colors.primary,
   },
-  avatarInitials: { fontSize: 36, fontWeight: "800", color: colors.text },
-  headerText: { flex: 1 },
-  name: { fontSize: 22, fontWeight: "800", color: colors.text },
-  phone: { marginTop: 4, color: colors.textSecondary, fontSize: 14 },
-  bio: { marginTop: 8, color: colors.textSecondary, lineHeight: 20 },
+  editAvatarBtn: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitials: { fontSize: 32, fontWeight: "800", color: '#1A1A2E' },
+  name: { fontSize: 22, fontWeight: "800", color: '#1A1A2E' },
+  phone: { marginTop: 4, color: '#999999', fontSize: 14 },
+  statsRow: {
+    flexDirection: "row",
+    marginTop: 20,
+    width: "100%",
+    justifyContent: "space-around",
+  },
+  statItem: { alignItems: "center" },
+  statValue: { fontSize: 20, fontWeight: "800", color: '#1A1A2E' },
+  statLabel: { fontSize: 12, color: '#999999', marginTop: 4 },
   completionCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  completionHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
-  completionTitle: { color: colors.text, fontWeight: "600" },
-  completionPercent: { color: colors.primary, fontWeight: "700" },
-  progressTrack: { height: 8, backgroundColor: colors.surface, borderRadius: 4, overflow: "hidden" },
+  completionTitle: { color: '#1A1A2E', fontWeight: "700", fontSize: 16, marginBottom: 10 },
+  progressTrack: { height: 8, backgroundColor: '#FFF5F7', borderRadius: 4, overflow: "hidden" },
   progressFill: { height: "100%", backgroundColor: colors.primary, borderRadius: 4 },
-  primaryBtn: {
+  completionPercent: { color: '#999999', fontSize: 12, marginTop: 8 },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 8,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  menuText: { flex: 1, fontSize: 15, fontWeight: "600", color: '#1A1A2E' },
+  premiumCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 20,
+    padding: 18,
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  premiumTextWrap: { flex: 1 },
+  premiumTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
+  premiumSub: { color: "rgba(255,255,255,0.8)", fontSize: 13, marginTop: 2 },
+  logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    marginBottom: 12,
-  },
-  primaryBtnText: { color: colors.text, fontWeight: "800", fontSize: 16 },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 12,
-  },
-  menuText: { flex: 1, fontSize: 15, fontWeight: "600", color: colors.text },
-  premiumWrap: { marginTop: 8, marginBottom: 16 },
-  premiumCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 18,
-    padding: 18,
-    gap: 12,
-  },
-  premiumTextWrap: { flex: 1 },
-  premiumTitle: { color: colors.text, fontSize: 17, fontWeight: "800" },
-  premiumSub: { color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 2 },
-  logoutButton: {
     borderWidth: 1,
     borderColor: colors.primary,
-    borderRadius: 25,
+    borderRadius: 16,
     paddingVertical: 14,
-    alignItems: "center",
   },
   logoutText: { color: colors.primary, fontWeight: "700", fontSize: 16 },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlayLight,
-    justifyContent: "flex-end",
-  },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlayLight, justifyContent: "flex-end" },
   modalCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   modalTitle: { fontSize: 20, fontWeight: "800", color: colors.text, marginBottom: 16 },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -511,22 +523,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 16,
   },
-  modalCancelFull: { paddingVertical: 14, alignItems: "center" },
-  voicePlayerWrap: { marginBottom: 16 },
   voiceHint: { color: colors.textSecondary, marginBottom: 12 },
   recordBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.card,
     padding: 14,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
     marginBottom: 12,
   },
   recordBtnText: { color: colors.text, fontWeight: "600" },
-  recordedNote: { color: colors.success, marginBottom: 8, fontSize: 13 },
   switchRow: {
     flexDirection: "row",
     justifyContent: "space-between",

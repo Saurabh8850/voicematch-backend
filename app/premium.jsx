@@ -1,213 +1,306 @@
-import { useState } from "react";
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import * as api from "../services/api";
-import colors from "../constants/colors";
+  View, Text, TouchableOpacity, StyleSheet,
+  ScrollView, Alert, ActivityIndicator
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import BackHeader from '../components/BackHeader';
+import { colors } from '../constants/colors';
+import * as api from '../services/api';
+import { useAuthStore } from '../store/authStore';
 
 const PLANS = [
   {
-    id: "monthly",
-    title: "Monthly",
-    price: "₹299/month",
+    id: 'monthly',
+    name: 'Monthly',
+    price: '₹99',
+    period: '/month',
+    totalPrice: '₹99',
+    perMonth: '₹99/mo',
     badge: null,
-    badgeColor: colors.primary,
-    highlighted: false,
+    color: ['#FF4458', '#FF6B7A'],
   },
   {
-    id: "quarterly",
-    title: "Quarterly",
-    price: "₹699/3 months",
-    badge: "Most Popular",
-    badgeColor: colors.popularBadge,
-    highlighted: true,
+    id: 'quarterly', 
+    name: 'Quarterly',
+    price: '₹299',
+    period: '/3 months',
+    totalPrice: '₹299',
+    perMonth: '₹99.6/mo',
+    badge: 'MOST POPULAR',
+    badgeColor: '#FF4458',
+    color: ['#FF4458', '#E03347'],
   },
   {
-    id: "yearly",
-    title: "Yearly",
-    price: "₹1999/year",
-    badge: "Best Value",
-    badgeColor: colors.valueBadge,
-    highlighted: false,
+    id: 'yearly',
+    name: 'Yearly',
+    price: '₹599',
+    period: '/year',
+    totalPrice: '₹599',
+    perMonth: '₹49.9/mo',
+    badge: 'BEST VALUE',
+    badgeColor: '#FF8C00',
+    color: ['#FF8C00', '#FF4458'],
   },
 ];
 
 const FEATURES = [
-  "Unlimited swipes",
-  "See who liked you",
-  "Profile boost",
-  "Priority matching",
+  { icon: 'heart', text: 'Unlimited Daily Likes', free: '10/day', premium: 'Unlimited' },
+  { icon: 'star', text: 'Super Likes', free: '2/day', premium: '5/day' },
+  { icon: 'eye', text: 'See Who Liked You', free: false, premium: true },
+  { icon: 'mic', text: 'Voice Room', free: '30 min/day', premium: 'Unlimited' },
+  { icon: 'sparkles', text: 'AI Icebreakers', free: '3/day', premium: 'Unlimited' },
+  { icon: 'flash', text: 'Profile Boost', free: false, premium: '1/week' },
+  { icon: 'refresh', text: 'Rewind Last Swipe', free: false, premium: true },
+  { icon: 'checkmark-circle', text: 'Read Receipts', free: false, premium: true },
 ];
 
 export default function PremiumScreen() {
-  const [loadingPlan, setLoadingPlan] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState('quarterly');
+  const [loading, setLoading] = useState(false);
+  const { updateUser } = useAuthStore();
 
-  const handleSubscribe = async (plan) => {
-    setLoadingPlan(plan);
+  const handleSubscribe = async () => {
+    setLoading(true);
     try {
-      const response = await api.createOrder(plan);
-      const order = response.data;
+      const orderRes = await api.createOrder(selectedPlan);
+      if (!orderRes?.data?.orderId) throw new Error('Order failed');
+      
+      // For now show success (Razorpay native SDK needs APK build)
       Alert.alert(
-        "Razorpay Checkout",
-        `Order created: ${order.orderId}\nAmount: ₹${Number(order.amount) / 100}\n\nNative Razorpay SDK requires a development build. Complete payment in production.`,
-        [{ text: "OK" }]
+        '🎉 Almost there!',
+        `Order created for ${PLANS.find(p => p.id === selectedPlan)?.price}. Razorpay payment will work in the production APK build.`,
+        [{ text: 'OK' }]
       );
-    } catch (error) {
-      Alert.alert("Payment error", error.message || "Could not create order");
+    } catch (err) {
+      Alert.alert('Error', 'Could not create order. Please try again.');
     } finally {
-      setLoadingPlan(null);
+      setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Go Premium</Text>
-        <View style={styles.backButton} />
-      </View>
+    <View style={styles.container}>
+      <BackHeader title="VoiceMatch Premium" />
+      
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Hero */}
+        <LinearGradient
+          colors={['#FF4458', '#FF8C00']}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+          style={styles.hero}
+        >
+          <Text style={styles.crownEmoji}>👑</Text>
+          <Text style={styles.heroTitle}>Go Premium</Text>
+          <Text style={styles.heroSubtitle}>
+            Unlimited likes, voice rooms & more
+          </Text>
+        </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Ionicons name="diamond" size={56} color={colors.gold} style={styles.crown} />
-
-        {PLANS.map((plan) => (
-          <View
-            key={plan.id}
-            style={[styles.planCard, plan.highlighted && styles.planCardHighlighted]}
-          >
-            {plan.badge && (
-              <View style={[styles.badge, { backgroundColor: plan.badgeColor }]}>
-                <Text style={styles.badgeText}>{plan.badge}</Text>
-              </View>
-            )}
-
-            <Text style={styles.planTitle}>{plan.title}</Text>
-            <Text style={styles.planPrice}>{plan.price}</Text>
-
-            {FEATURES.map((feature) => (
-              <View key={feature} style={styles.featureRow}>
-                <Ionicons name="checkmark-circle" size={18} color={colors.green} />
-                <Text style={styles.featureText}>{feature}</Text>
-              </View>
-            ))}
-
+        {/* Plan Cards */}
+        <View style={styles.plansSection}>
+          <Text style={styles.sectionTitle}>Choose Your Plan</Text>
+          
+          {PLANS.map((plan) => (
             <TouchableOpacity
-              style={styles.subscribeButton}
-              onPress={() => handleSubscribe(plan.id)}
-              disabled={loadingPlan === plan.id}
+              key={plan.id}
+              onPress={() => setSelectedPlan(plan.id)}
+              activeOpacity={0.8}
             >
-              {loadingPlan === plan.id ? (
-                <ActivityIndicator color={colors.white} />
+              {selectedPlan === plan.id ? (
+                <LinearGradient
+                  colors={plan.color}
+                  style={styles.planCardSelected}
+                >
+                  {plan.badge && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{plan.badge}</Text>
+                    </View>
+                  )}
+                  <View style={styles.planRow}>
+                    <View>
+                      <Text style={styles.planNameSelected}>{plan.name}</Text>
+                      <Text style={styles.planPerMonth}>{plan.perMonth}</Text>
+                    </View>
+                    <View style={styles.planPriceBox}>
+                      <Text style={styles.planPriceSelected}>{plan.price}</Text>
+                      <Text style={styles.planPeriodSelected}>{plan.period}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.selectedCheck}>
+                    <Ionicons name="checkmark-circle" size={24} color="white" />
+                  </View>
+                </LinearGradient>
               ) : (
-                <Text style={styles.subscribeText}>Subscribe</Text>
+                <View style={styles.planCard}>
+                  {plan.badge && (
+                    <View style={[styles.badge, { backgroundColor: plan.badgeColor }]}>
+                      <Text style={styles.badgeText}>{plan.badge}</Text>
+                    </View>
+                  )}
+                  <View style={styles.planRow}>
+                    <View>
+                      <Text style={styles.planName}>{plan.name}</Text>
+                      <Text style={styles.planPerMonthGray}>{plan.perMonth}</Text>
+                    </View>
+                    <View style={styles.planPriceBox}>
+                      <Text style={styles.planPrice}>{plan.price}</Text>
+                      <Text style={styles.planPeriod}>{plan.period}</Text>
+                    </View>
+                  </View>
+                </View>
               )}
             </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Features Comparison */}
+        <View style={styles.featuresSection}>
+          <Text style={styles.sectionTitle}>What you get</Text>
+          
+          {/* Header row */}
+          <View style={styles.featureHeader}>
+            <Text style={[styles.featureHeaderText, { flex: 2 }]}>Feature</Text>
+            <Text style={styles.featureHeaderText}>Free</Text>
+            <Text style={[styles.featureHeaderText, { color: colors.primary }]}>Premium</Text>
           </View>
-        ))}
+
+          {FEATURES.map((feature, index) => (
+            <View key={index} style={[
+              styles.featureRow,
+              index % 2 === 0 && styles.featureRowAlt
+            ]}>
+              <View style={styles.featureLeft}>
+                <Ionicons name={feature.icon} size={18} color={colors.primary} />
+                <Text style={styles.featureText}>{feature.text}</Text>
+              </View>
+              
+              <Text style={styles.featureFree}>
+                {feature.free === false ? '❌' : feature.free}
+              </Text>
+              
+              <Text style={styles.featurePremium}>
+                {feature.premium === true ? '✅' : feature.premium}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Subscribe Button */}
+        <View style={styles.subscribeSection}>
+          <TouchableOpacity onPress={handleSubscribe} disabled={loading} activeOpacity={0.8}>
+            <LinearGradient
+              colors={['#FF4458', '#FF2D55']}
+              style={styles.subscribeBtn}
+            >
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <>
+                  <Ionicons name="diamond" size={20} color="white" />
+                  <Text style={styles.subscribeBtnText}>
+                    Subscribe — {PLANS.find(p => p.id === selectedPlan)?.price}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+          
+          <Text style={styles.disclaimer}>
+            Cancel anytime. Billed as per selected plan.
+          </Text>
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
+  container: { flex: 1, backgroundColor: colors.background },
+  hero: {
+    padding: 32,
+    alignItems: 'center',
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  crown: {
-    alignSelf: "center",
-    marginBottom: 24,
-  },
+  crownEmoji: { fontSize: 56, marginBottom: 8 },
+  heroTitle: { fontSize: 32, fontWeight: 'bold', color: 'white', marginBottom: 8 },
+  heroSubtitle: { fontSize: 16, color: 'rgba(255,255,255,0.85)', textAlign: 'center' },
+  
+  plansSection: { padding: 16 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text, marginBottom: 16 },
+  
   planCard: {
-    backgroundColor: colors.white,
-    borderRadius: 18,
+    backgroundColor: colors.card,
+    borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
+    marginBottom: 12,
+    borderWidth: 2,
     borderColor: colors.border,
   },
-  planCardHighlighted: {
-    backgroundColor: colors.cardHighlight,
-    borderColor: colors.primary,
+  planCardSelected: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
   },
+  planRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  planName: { fontSize: 18, fontWeight: '700', color: colors.text },
+  planNameSelected: { fontSize: 18, fontWeight: '700', color: 'white' },
+  planPerMonth: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  planPerMonthGray: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  planPriceBox: { alignItems: 'flex-end' },
+  planPrice: { fontSize: 24, fontWeight: 'bold', color: colors.primary },
+  planPriceSelected: { fontSize: 24, fontWeight: 'bold', color: 'white' },
+  planPeriod: { fontSize: 12, color: colors.textMuted },
+  planPeriodSelected: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
+  
   badge: {
-    alignSelf: "flex-start",
-    borderRadius: 12,
-    paddingHorizontal: 10,
+    position: 'absolute',
+    top: -10,
+    right: 16,
+    backgroundColor: '#FF4458',
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    marginBottom: 10,
+    borderRadius: 20,
+    zIndex: 1,
   },
-  badgeText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: "700",
+  badgeText: { color: 'white', fontSize: 11, fontWeight: 'bold' },
+  selectedCheck: { position: 'absolute', top: 12, right: 12 },
+
+  featuresSection: { paddingHorizontal: 16, marginBottom: 16 },
+  featureHeader: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: colors.inputBg,
+    borderRadius: 8,
+    marginBottom: 4,
   },
-  planTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  planPrice: {
-    fontSize: 16,
-    color: colors.grayDark,
-    marginTop: 4,
-    marginBottom: 14,
-  },
+  featureHeaderText: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.textSecondary, textAlign: 'center' },
   featureRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  featureRowAlt: { backgroundColor: colors.inputBg },
+  featureLeft: { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  featureText: { fontSize: 13, color: colors.text, flex: 1 },
+  featureFree: { flex: 1, fontSize: 12, color: colors.textMuted, textAlign: 'center' },
+  featurePremium: { flex: 1, fontSize: 12, color: colors.primary, textAlign: 'center', fontWeight: '600' },
+
+  subscribeSection: { padding: 16, paddingBottom: 32 },
+  subscribeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    marginBottom: 8,
+    paddingVertical: 18,
+    borderRadius: 30,
+    marginBottom: 12,
   },
-  featureText: {
-    color: colors.text,
-    fontSize: 14,
-  },
-  subscribeButton: {
-    marginTop: 16,
-    backgroundColor: colors.primary,
-    borderRadius: 25,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  subscribeText: {
-    color: colors.white,
-    fontWeight: "700",
-    fontSize: 16,
-  },
+  subscribeBtnText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  disclaimer: { textAlign: 'center', fontSize: 12, color: colors.textMuted },
 });

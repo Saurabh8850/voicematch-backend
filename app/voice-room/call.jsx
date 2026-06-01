@@ -22,6 +22,7 @@ import {
   joinVoiceChannel,
   leaveAndDestroyEngine,
 } from "../../services/agoraVoice";
+import BackHeader from "../../components/BackHeader";
 import colors from "../../constants/colors";
 import { getInitials } from "../../utils/user";
 
@@ -249,24 +250,7 @@ export default function VoiceRoomCallScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleLeave}>
-          <Ionicons name="chevron-down" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.roomTitle}>{roomName}</Text>
-          {fallbackMode ? (
-            <Text style={styles.fallbackNote}>Expo Go mode — voice UI only</Text>
-          ) : agoraReady ? (
-            <Text style={styles.liveNote}>Live voice connected</Text>
-          ) : (
-            <Text style={styles.fallbackNote}>Connecting...</Text>
-          )}
-        </View>
-        <TouchableOpacity onPress={() => setMembersVisible(true)}>
-          <Ionicons name="people" size={24} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+      <BackHeader title={roomName} onBack={handleLeave} />
 
       <View style={styles.grid}>
         {slots.map((index) => renderSlot(index))}

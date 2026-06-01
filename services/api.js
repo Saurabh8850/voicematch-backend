@@ -173,6 +173,10 @@ export async function verifyPayment(data) {
   return request(() => client.post("/payments/verify", data));
 }
 
+export async function getPaymentStatus() {
+  return request(() => client.get("/payments/status"));
+}
+
 export async function findVoiceRoom() {
   return request(() => client.post("/rooms/find"));
 }

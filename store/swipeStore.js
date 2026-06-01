@@ -5,6 +5,7 @@ export const useSwipeStore = create((set, get) => ({
   feedUsers: [],
   currentIndex: 0,
   isLoading: false,
+  limitError: null,
 
   loadFeed: async () => {
     set({ isLoading: true });
@@ -26,18 +27,37 @@ export const useSwipeStore = create((set, get) => ({
   swipeAction: async (targetUserId, direction) => {
     const { feedUsers, currentIndex } = get();
 
-    const response = await api.swipeAction(targetUserId, direction);
+    try {
+      const response = await api.swipeAction(targetUserId, direction);
 
-    set({
-      feedUsers: feedUsers.filter((user) => user.id !== targetUserId),
-      currentIndex: Math.min(currentIndex, Math.max(feedUsers.length - 2, 0)),
-    });
+      set({
+        feedUsers: feedUsers.filter((user) => user.id !== targetUserId),
+        currentIndex: Math.min(currentIndex, Math.max(feedUsers.length - 2, 0)),
+        limitError: null,
+      });
 
-    if (response?.data?.matched) {
-      return { matched: true, matchId: response.data.matchId };
+      if (response?.data?.matched) {
+        return { matched: true, matchId: response.data.matchId };
+      }
+      return { matched: false };
+    } catch (error) {
+      // Check if it's a 402 limit error
+      if (error.response?.status === 402) {
+        const errorData = error.response?.data;
+        set({
+          limitError: {
+            code: errorData?.code,
+            message: errorData?.message,
+            resetsIn: errorData?.resetsIn,
+          }
+        });
+        throw error;
+      }
+      throw error;
     }
-    return { matched: false };
   },
 
-  resetFeed: () => set({ feedUsers: [], currentIndex: 0 }),
+  clearLimitError: () => set({ limitError: null }),
+  resetFeed: () => set({ feedUsers: [], currentIndex: 0, limitError: null }),
 }));
+

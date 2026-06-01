@@ -7,18 +7,24 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import * as api from "../../services/api";
 import { useAuthStore } from "../../store/authStore";
+import OnboardingProgress from "../../components/OnboardingProgress";
+import GradientButton from "../../components/GradientButton";
+import BackHeader from "../../components/BackHeader";
 import colors from "../../constants/colors";
 
 const GENDERS = [
-  { label: "Man", value: "male" },
-  { label: "Woman", value: "female" },
-  { label: "Non-binary", value: "non-binary" },
+  { label: "Man 👨", value: "male" },
+  { label: "Woman 👩", value: "female" },
+  { label: "Non-binary 🌈", value: "non-binary" },
 ];
 
 const INTERESTS = [
@@ -55,12 +61,7 @@ export default function BasicInfoScreen() {
 
     setLoading(true);
     try {
-      await api.updateProfile({
-        name: name.trim(),
-        age,
-        gender,
-        bio: "",
-      });
+      await api.updateProfile({ name: name.trim(), age, gender, bio: "" });
       await api.updatePreferences({
         minAge: 18,
         maxAge: 60,
@@ -77,190 +78,188 @@ export default function BasicInfoScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: "33%" }]} />
-      </View>
+    <LinearGradient colors={colors.backgroundGradient} start={{x: 0, y: 0}} end={{x: 0, y: 1}} style={{flex: 1}}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" />
+      <BackHeader title="" />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <OnboardingProgress step={1} />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Tell us about you</Text>
+          <Text style={styles.title}>Tell us about you ✨</Text>
+          <Text style={styles.subtitle}>This helps us find your perfect match</Text>
 
-        <Text style={styles.label}>Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Your name"
-          placeholderTextColor={colors.grayMuted}
-          value={name}
-          onChangeText={setName}
-        />
+          <Text style={styles.label}>Your first name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Your first name"
+            placeholderTextColor={colors.textMuted}
+            value={name}
+            onChangeText={setName}
+          />
 
-        <Text style={styles.label}>Age</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ageScroll}>
-          {Array.from({ length: 43 }, (_, index) => 18 + index).map((value) => (
-            <TouchableOpacity
-              key={value}
-              style={[styles.ageChip, age === value && styles.ageChipSelected]}
-              onPress={() => setAge(value)}
-            >
-              <Text style={[styles.ageText, age === value && styles.ageTextSelected]}>{value}</Text>
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.label}>How old are you?</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ageScroll}>
+            {Array.from({ length: 43 }, (_, index) => 18 + index).map((value) => (
+              <TouchableOpacity
+                key={value}
+                style={[styles.ageChip, age === value && styles.ageChipSelected]}
+                onPress={() => setAge(value)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.ageText, age === value && styles.ageTextSelected]}>
+                  {value}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.label}>I am a...</Text>
+          <View style={styles.pillRow}>
+            {GENDERS.map((item) => {
+              const selected = gender === item.value;
+              return (
+                <TouchableOpacity
+                  key={item.value}
+                  style={[styles.pill, selected && styles.pillSelected]}
+                  onPress={() => setGender(item.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.pillText, selected && styles.pillTextSelected]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.label}>Interested in...</Text>
+          <View style={styles.pillRow}>
+            {INTERESTS.map((item) => {
+              const selected = interestedIn === item.value;
+              return (
+                <TouchableOpacity
+                  key={item.value}
+                  style={[styles.pill, selected && styles.pillSelected]}
+                  onPress={() => setInterestedIn(item.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.pillText, selected && styles.pillTextSelected]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </ScrollView>
 
-        <Text style={styles.label}>Gender</Text>
-        <View style={styles.row}>
-          {GENDERS.map((item) => (
-            <TouchableOpacity
-              key={item.value}
-              style={[styles.choiceBox, gender === item.value && styles.choiceBoxSelected]}
-              onPress={() => setGender(item.value)}
-            >
-              <Text style={[styles.choiceText, gender === item.value && styles.choiceTextSelected]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.label}>Interested in</Text>
-        <View style={styles.row}>
-          {INTERESTS.map((item) => (
-            <TouchableOpacity
-              key={item.value}
-              style={[styles.choiceBox, interestedIn === item.value && styles.choiceBoxSelected]}
-              onPress={() => setInterestedIn(item.value)}
-            >
-              <Text
-                style={[styles.choiceText, interestedIn === item.value && styles.choiceTextSelected]}
-              >
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleContinue}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <Text style={styles.buttonText}>Continue</Text>
-        )}
-      </TouchableOpacity>
+        <GradientButton
+          title="Continue"
+          onPress={handleContinue}
+          loading={loading}
+          style={styles.footerBtn}
+        />
+      </KeyboardAvoidingView>
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingHorizontal: 20,
   },
-  progressTrack: {
-    height: 4,
-    backgroundColor: colors.grayLight,
-    borderRadius: 2,
-    marginVertical: 12,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: colors.primary,
+  flex: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
   content: {
     paddingBottom: 24,
+    paddingTop: 8,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "700",
-    color: colors.text,
-    marginBottom: 20,
+    color: '#1A1A2E',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#666666',
+    marginBottom: 24,
   },
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.grayDark,
-    marginBottom: 8,
-    marginTop: 12,
+    color: colors.textSecondary,
+    marginBottom: 10,
+    marginTop: 16,
   },
   input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 16,
     fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.white,
+    color: '#1A1A2E',
+    borderWidth: 1,
+    borderColor: '#FFE8EC',
   },
   ageScroll: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   ageChip: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
-    backgroundColor: colors.white,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FFE8EC',
   },
   ageChipSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
   ageText: {
-    color: colors.text,
+    color: '#666666',
     fontWeight: "600",
+    fontSize: 15,
   },
   ageTextSelected: {
-    color: colors.white,
+    color: '#FFFFFF',
   },
-  row: {
+  pillRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
   },
-  choiceBox: {
-    flex: 1,
-    minWidth: "30%",
+  pill: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-    backgroundColor: colors.white,
+    borderColor: '#FFE8EC',
   },
-  choiceBoxSelected: {
+  pillSelected: {
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  choiceText: {
-    color: colors.text,
+  pillText: {
+    color: '#666666',
     fontWeight: "600",
+    fontSize: 14,
   },
-  choiceTextSelected: {
-    color: colors.primary,
+  pillTextSelected: {
+    color: '#FFFFFF',
   },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 25,
-    paddingVertical: 16,
-    alignItems: "center",
+  footerBtn: {
     marginBottom: 20,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: "700",
   },
 });
