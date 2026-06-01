@@ -20,10 +20,16 @@ function getPlanDurationDays(plan) {
   return 365;
 }
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+let razorpayInstance = null;
+function getRazorpay() {
+  if (!razorpayInstance) {
+    razorpayInstance = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_dummy',
+      key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_secret',
+    });
+  }
+  return razorpayInstance;
+}
 
 router.post("/create-order", async (req, res, next) => {
   try {
@@ -33,7 +39,7 @@ router.post("/create-order", async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Invalid plan" });
     }
 
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount,
       currency: "INR",
       receipt: `receipt_${randomUUID().slice(0, 12)}`,
