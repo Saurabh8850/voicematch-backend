@@ -11,7 +11,7 @@ import {
   Share,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
@@ -31,6 +31,7 @@ const SLOT_COUNT = 6;
 export default function VoiceRoomCallScreen() {
   const params = useLocalSearchParams();
   const user = useAuthStore((state) => state.user);
+  const insets = useSafeAreaInsets();
 
   const channel = params.channel;
   const token = params.token;
@@ -249,7 +250,7 @@ export default function VoiceRoomCallScreen() {
   const slots = Array.from({ length: roomType === "random" ? 2 : SLOT_COUNT }, (_, i) => i);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
       <BackHeader title={roomName} onBack={handleLeave} />
 
       <View style={styles.grid}>

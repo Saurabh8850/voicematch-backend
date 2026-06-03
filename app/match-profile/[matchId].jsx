@@ -58,7 +58,12 @@ export default function MatchProfileScreen() {
     otherUser?.bio?.split("|").map((s) => s.trim()).filter(Boolean) || [];
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        { paddingBottom: insets.bottom },
+      ]}
+    >
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Main Photo - Full width */}
         <View style={styles.mainPhotoContainer}>

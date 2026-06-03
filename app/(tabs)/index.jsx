@@ -9,7 +9,7 @@ import {
   Modal,
   Pressable,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +23,7 @@ import colors from "../../constants/colors";
 import * as api from "../../services/api";
 
 export default function Discover() {
+  const insets = useSafeAreaInsets();
   const { feedUsers, isLoading, loadFeed, swipeAction, limitError, clearLimitError } = useSwipeStore();
   const loadMatches = useMatchStore((state) => state.loadMatches);
   const addMatch = useMatchStore((state) => state.addMatch);
@@ -120,7 +121,10 @@ export default function Discover() {
 
   return (
     <LinearGradient colors={colors.backgroundGradient} start={{x: 0, y: 0}} end={{x: 0, y: 1}} style={{flex: 1}}>
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <SafeAreaView
+        style={[styles.container, { paddingBottom: insets.bottom }]}
+        edges={["top"]}
+      >
         <StatusBar style="dark" />
         <View style={styles.topBar}>
           <Text style={styles.logo}>VoiceMatch</Text>

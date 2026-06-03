@@ -21,7 +21,10 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.startingscale.voicematch"
+      "package": "com.startingscale.voicematch",
+      "androidNavigationBar": {
+        "visible": "sticky-immersive"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

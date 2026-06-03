@@ -105,7 +105,12 @@ export default function MatchesScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, paddingBottom: insets.bottom },
+      ]}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Matches</Text>
         <View style={styles.countBadge}>

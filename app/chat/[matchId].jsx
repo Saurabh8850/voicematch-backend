@@ -14,7 +14,10 @@ import {
   Platform,
   Modal,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -64,6 +67,7 @@ function VoiceMessageBubble({ message, isOwn }) {
 }
 
 export default function ChatScreen() {
+  const insets = useSafeAreaInsets();
   const { matchId } = useLocalSearchParams();
   const user = useAuthStore((state) => state.user);
   const { messages, isLoading, loadMessages, addMessage, sendMessage } = useChatStore();
@@ -242,7 +246,10 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+    <SafeAreaView
+      style={[styles.container, { paddingBottom: insets.bottom }]}
+      edges={["top", "bottom"]}
+    >
       <StatusBar style="dark" />
       <BackHeader 
         title={otherUser?.full_name || 'Chat'} 

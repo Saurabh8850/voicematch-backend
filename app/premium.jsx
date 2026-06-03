@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ScrollView, Alert, ActivityIndicator
@@ -58,6 +59,7 @@ const FEATURES = [
 ];
 
 export default function PremiumScreen() {
+  const insets = useSafeAreaInsets();
   const [selectedPlan, setSelectedPlan] = useState('quarterly');
   const [loading, setLoading] = useState(false);
   const { updateUser } = useAuthStore();
@@ -82,7 +84,7 @@ export default function PremiumScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
       <BackHeader title="VoiceMatch Premium" />
       
       <ScrollView showsVerticalScrollIndicator={false}>

@@ -1,8 +1,10 @@
 import { useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CallScreen from "../../components/CallScreen";
 
 export default function CallRouteScreen() {
   const { callId, channel, token, otherUser } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
 
   let parsedOtherUser = null;
   try {
@@ -17,6 +19,10 @@ export default function CallRouteScreen() {
       channel={channel}
       token={token}
       otherUser={parsedOtherUser}
+      style={{
+        flex: 1,
+        paddingBottom: insets.bottom,
+      }}
     />
   );
 }

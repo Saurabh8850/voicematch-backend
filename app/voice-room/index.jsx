@@ -13,7 +13,7 @@ import {
   TextInput,
   ScrollView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -28,6 +28,7 @@ const TOPICS = ["Dating Talk", "Music", "Movies", "Random"];
 const MAX_MEMBER_OPTIONS = [2, 4, 6];
 
 export default function VoiceRoomHub() {
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState("random");
   const [finding, setFinding] = useState(false);
   const [rooms, setRooms] = useState([]);
@@ -214,26 +215,26 @@ export default function VoiceRoomHub() {
 
   return (
     <LinearGradient colors={colors.backgroundGradient} start={{x: 0, y: 0}} end={{x: 0, y: 1}} style={{flex: 1}}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
         <StatusBar style="dark" />
-      <BackHeader title="Voice Room 🎙️" />
+        <BackHeader title="Voice Room 🎙️" />
 
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, tab === "random" && styles.tabActive]}
-          onPress={() => setTab("random")}
-        >
-          <Text style={[styles.tabText, tab === "random" && styles.tabTextActive]}>Random</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, tab === "rooms" && styles.tabActive]}
-          onPress={() => setTab("rooms")}
-        >
-          <Text style={[styles.tabText, tab === "rooms" && styles.tabTextActive]}>Rooms</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.tabs}>
+          <TouchableOpacity
+            style={[styles.tab, tab === "random" && styles.tabActive]}
+            onPress={() => setTab("random")}
+          >
+            <Text style={[styles.tabText, tab === "random" && styles.tabTextActive]}>Random</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, tab === "rooms" && styles.tabActive]}
+            onPress={() => setTab("rooms")}
+          >
+            <Text style={[styles.tabText, tab === "rooms" && styles.tabTextActive]}>Rooms</Text>
+          </TouchableOpacity>
+        </View>
 
-      {tab === "random" ? (
+        {tab === "random" ? (
         <View style={styles.randomContent}>
           {!finding ? (
             <>
